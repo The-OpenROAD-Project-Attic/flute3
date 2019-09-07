@@ -127,30 +127,6 @@ inline Tree flutes_LMD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int a
         }
 }
 
-template <class T> inline T maxFlute(T x, T y) {
-        if (x > y) {
-                return x;
-        } else {
-                return y;
-        }
-}
-
-template <class T> inline T minFlute(T x, T y) {
-        if (x < y) {
-                return x;
-        } else {
-                return y;
-        }
-}
-
-template <class T> inline T abs(T x) {
-        if (x < 0) {
-                return (-x);
-        } else {
-                return x;
-        }
-}
-
 template <class T> inline T ADIFF(T x, T y) {
         if (x > y) {
             return (x - y);

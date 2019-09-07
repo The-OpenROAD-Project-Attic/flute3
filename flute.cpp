@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <math.h>
+#include <algorithm>
 #include "flute.h"
 
 namespace Flute {
@@ -178,18 +179,18 @@ FLUTE_DTYPE flute_wl(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc) {
                 l = ADIFF(x[0], x[1]) + ADIFF(y[0], y[1]);
         else if (d == 3) {
                 if (x[0] > x[1]) {
-                        xu = maxFlute(x[0], x[2]);
-                        xl = minFlute(x[1], x[2]);
+                        xu = std::max(x[0], x[2]);
+                        xl = std::min(x[1], x[2]);
                 } else {
-                        xu = maxFlute(x[1], x[2]);
-                        xl = minFlute(x[0], x[2]);
+                        xu = std::max(x[1], x[2]);
+                        xl = std::min(x[0], x[2]);
                 }
                 if (y[0] > y[1]) {
-                        yu = maxFlute(y[0], y[2]);
-                        yl = minFlute(y[1], y[2]);
+                        yu = std::max(y[0], y[2]);
+                        yl = std::min(y[1], y[2]);
                 } else {
-                        yu = maxFlute(y[1], y[2]);
-                        yl = minFlute(y[0], y[2]);
+                        yu = std::max(y[1], y[2]);
+                        yl = std::min(y[0], y[2]);
                 }
                 l = (xu - xl) + (yu - yl);
         } else {
@@ -343,7 +344,7 @@ FLUTE_DTYPE flutes_wl_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]) {
                                 sum += dd[rlist->seg[i]];
                         for (i = 10; rlist->seg[i] > 0; i--)
                                 sum -= dd[rlist->seg[i]];
-                        minl = minFlute(minl, sum);
+                        minl = std::min(minl, sum);
                         l[j++] = sum;
                 }
         }
@@ -379,9 +380,9 @@ FLUTE_DTYPE flutes_wl_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int
         s2 = (int *)malloc(sizeof(int) * (degree));
 
         if (s[0] < s[d - 1]) {
-                ms = maxFlute(s[0], s[1]);
+                ms = std::max(s[0], s[1]);
                 for (i = 2; i <= ms; i++)
-                        ms = maxFlute(ms, s[i]);
+                        ms = std::max(ms, s[i]);
                 if (ms <= d - 3) {
                         for (i = 0; i <= ms; i++) {
                                 x1[i] = xs[i];
@@ -413,9 +414,9 @@ FLUTE_DTYPE flutes_wl_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int
                         return return_val;
                 }
         } else {  // (s[0] > s[d-1])
-                ms = minFlute(s[0], s[1]);
+                ms = std::min(s[0], s[1]);
                 for (i = 2; i <= d - 1 - ms; i++)
-                        ms = minFlute(ms, s[i]);
+                        ms = std::min(ms, s[i]);
                 if (ms >= 2) {
                         x1[0] = xs[ms];
                         y1[0] = ys[0];
@@ -965,9 +966,9 @@ Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc)
         s2 = (int *)malloc(sizeof(int) * (degree));
 
         if (s[0] < s[d - 1]) {
-                ms = maxFlute(s[0], s[1]);
+                ms = std::max(s[0], s[1]);
                 for (i = 2; i <= ms; i++)
-                        ms = maxFlute(ms, s[i]);
+                        ms = std::max(ms, s[i]);
                 if (ms <= d - 3) {
                         for (i = 0; i <= ms; i++) {
                                 x1[i] = xs[i];
@@ -1003,9 +1004,9 @@ Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc)
                         return t;
                 }
         } else {  // (s[0] > s[d-1])
-                ms = minFlute(s[0], s[1]);
+                ms = std::min(s[0], s[1]);
                 for (i = 2; i <= d - 1 - ms; i++)
-                        ms = minFlute(ms, s[i]);
+                        ms = std::min(ms, s[i]);
                 if (ms >= 2) {
                         x1[0] = xs[ms];
                         y1[0] = ys[0];
@@ -1181,10 +1182,10 @@ Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc)
                         ll = t1.length + t2.length;
                         coord1 = t1.branch[t1.branch[nn1].n].y;
                         coord2 = t2.branch[t2.branch[nn2].n].y;
-                        if (t2.branch[nn2].y > maxFlute(coord1, coord2))
-                                ll -= t2.branch[nn2].y - maxFlute(coord1, coord2);
-                        else if (t2.branch[nn2].y < minFlute(coord1, coord2))
-                                ll -= minFlute(coord1, coord2) - t2.branch[nn2].y;
+                        if (t2.branch[nn2].y > std::max(coord1, coord2))
+                                ll -= t2.branch[nn2].y - std::max(coord1, coord2);
+                        else if (t2.branch[nn2].y < std::min(coord1, coord2))
+                                ll -= std::min(coord1, coord2) - t2.branch[nn2].y;
                 } else {  // if (!BreakInX(maxbp))
                         n1 = n2 = 0;
                         for (r = 0; r < d; r++) {
@@ -1210,10 +1211,10 @@ Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc)
                         ll = t1.length + t2.length;
                         coord1 = t1.branch[t1.branch[p].n].x;
                         coord2 = t2.branch[t2.branch[0].n].x;
-                        if (t2.branch[0].x > maxFlute(coord1, coord2))
-                                ll -= t2.branch[0].x - maxFlute(coord1, coord2);
-                        else if (t2.branch[0].x < minFlute(coord1, coord2))
-                                ll -= minFlute(coord1, coord2) - t2.branch[0].x;
+                        if (t2.branch[0].x > std::max(coord1, coord2))
+                                ll -= t2.branch[0].x - std::max(coord1, coord2);
+                        else if (t2.branch[0].x < std::min(coord1, coord2))
+                                ll -= std::min(coord1, coord2) - t2.branch[0].x;
                 }
                 if (minl > ll) {
                         minl = ll;
@@ -1356,11 +1357,11 @@ Tree hmergetree(Tree t1, Tree t2, int s[]) {
         extra = 2 * t.deg - 3;
         coord1 = t1.branch[t1.branch[nn1].n].y;
         coord2 = t2.branch[t2.branch[nn2].n].y;
-        if (t2.branch[nn2].y > maxFlute(coord1, coord2)) {
-                t.branch[extra].y = maxFlute(coord1, coord2);
+        if (t2.branch[nn2].y > std::max(coord1, coord2)) {
+                t.branch[extra].y = std::max(coord1, coord2);
                 t.length -= t2.branch[nn2].y - t.branch[extra].y;
-        } else if (t2.branch[nn2].y < minFlute(coord1, coord2)) {
-                t.branch[extra].y = minFlute(coord1, coord2);
+        } else if (t2.branch[nn2].y < std::min(coord1, coord2)) {
+                t.branch[extra].y = std::min(coord1, coord2);
                 t.length -= t.branch[extra].y - t2.branch[nn2].y;
         } else
                 t.branch[extra].y = t2.branch[nn2].y;
@@ -1416,11 +1417,11 @@ Tree vmergetree(Tree t1, Tree t2) {
         extra = 2 * t.deg - 3;
         coord1 = t1.branch[t1.branch[t1.deg - 1].n].x;
         coord2 = t2.branch[t2.branch[0].n].x;
-        if (t2.branch[0].x > maxFlute(coord1, coord2)) {
-                t.branch[extra].x = maxFlute(coord1, coord2);
+        if (t2.branch[0].x > std::max(coord1, coord2)) {
+                t.branch[extra].x = std::max(coord1, coord2);
                 t.length -= t2.branch[0].x - t.branch[extra].x;
-        } else if (t2.branch[0].x < minFlute(coord1, coord2)) {
-                t.branch[extra].x = minFlute(coord1, coord2);
+        } else if (t2.branch[0].x < std::min(coord1, coord2)) {
+                t.branch[extra].x = std::min(coord1, coord2);
                 t.length -= t.branch[extra].x - t2.branch[0].x;
         } else
                 t.branch[extra].x = t2.branch[0].x;
