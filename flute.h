@@ -31,12 +31,12 @@
 
 #ifndef __FLUTE_H__
 #define __FLUTE_H__
-namespace FastRoute {
+
+namespace Flute {
 
 /*****************************/
 /*  User-Defined Parameters  */
 /*****************************/
-#define MAXD 1000               // max. degree that can be handled
 #define ACCURACY 10             // Default accuracy
 #define ROUTING 1               // 1 to construct routing, 0 to estimate WL only
 #define LOCAL_REFINEMENT 1      // Suggestion: Set to 1 if ACCURACY >= 5
@@ -45,18 +45,6 @@ namespace FastRoute {
 #ifndef DTYPE  // Data type for distance
 #define DTYPE int
 #endif
-
-/*****************************/
-/*  User-Callable Functions  */
-/*****************************/
-// void readLUT();
-// DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
-// DTYPE flutes_wl(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-// Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
-// Tree flutes(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-// DTYPE wirelength(Tree t);
-// void printtree(Tree t);
-// void plottree(Tree t);
 
 /*************************************/
 /* Internal Parameters and Functions */
@@ -123,5 +111,5 @@ extern Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
 #define minFlute(x, y) ((x) < (y) ? (x) : (y))
 #define abs(x) ((x) < 0 ? (-x) : (x))
 #define ADIFF(x, y) ((x) > (y) ? (x - y) : (y - x))  // Absolute difference
-}  // namespace FastRoute
+}  // namespace Flute
 #endif /* __FLUTE_H__ */

@@ -35,7 +35,7 @@
 #include <math.h>
 #include "flute.h"
 
-namespace FastRoute {
+namespace Flute {
 
 #if D <= 7
 #define MGROUP 5040 / 4  // Max. # of groups, 7! = 5040
@@ -1591,4 +1591,4 @@ void plottree(Tree t) {
                        t.branch[t.branch[i].n].y);
         }
 }
-}  // namespace FastRoute
+}  // namespace Flute
