@@ -42,8 +42,8 @@ namespace Flute {
 #define LOCAL_REFINEMENT 1      // Suggestion: Set to 1 if ACCURACY >= 5
 #define REMOVE_DUPLICATE_PIN 0  // Remove dup. pin for flute_wl() & flute()
 
-#ifndef DTYPE  // Data type for distance
-#define DTYPE int
+#ifndef FLUTE_DTYPE  // Data type for distance
+#define FLUTE_DTYPE int
 #endif
 
 /*************************************/
@@ -56,38 +56,36 @@ namespace Flute {
 #define D1(A) (25 + 120 / ((A) * (A)))  // flute_mr is used for D1 < d <= D2
 #define D2(A) ((A) <= 6 ? 500 : 75 + 5 * (A))
 
-typedef struct
-{
-        DTYPE x, y;  // starting point of the branch
+typedef struct {
+        FLUTE_DTYPE x, y;  // starting point of the branch
         int n;       // index of neighbor
 } Branch;
 
-typedef struct
-{
+typedef struct {
         int deg;         // degree
-        DTYPE length;    // total wirelength
+        FLUTE_DTYPE length;    // total wirelength
         Branch *branch;  // array of tree branches
 } Tree;
 
 // User-Callable Functions
 extern void readLUT();
-extern DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
-//Macro: DTYPE flutes_wl(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
-//Macro: Tree flutes(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern DTYPE wirelength(Tree t);
+extern FLUTE_DTYPE flute_wl(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc);
+//Macro: FLUTE_DTYPE flutes_wl(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+extern Tree flute(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc);
+//Macro: Tree flutes(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+extern FLUTE_DTYPE wirelength(Tree t);
 extern void printtree(Tree t);
 extern void plottree(Tree t);
 
 // Other useful functions
-extern void init_param();
-extern DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-extern DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-extern Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flutes_HD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+extern FLUTE_DTYPE flutes_wl_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]);
+extern FLUTE_DTYPE flutes_wl_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+extern FLUTE_DTYPE flutes_wl_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+extern Tree flutes_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]);
+extern Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+extern Tree flutes_HD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+extern Tree flutes_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+
 
 #if REMOVE_DUPLICATE_PIN == 1
 #define flutes_wl(d, xs, ys, s, acc) flutes_wl_RDP(d, xs, ys, s, acc)

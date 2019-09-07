@@ -59,24 +59,24 @@ struct csoln *LUT[D + 1][MGROUP];  // storing 4 .. D
 int numsoln[D + 1][MGROUP];
 
 struct point {
-        DTYPE x, y;
+        FLUTE_DTYPE x, y;
         int o;
 };
 
 void readLUT();
-DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
-DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
-Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+FLUTE_DTYPE flute_wl(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc);
+FLUTE_DTYPE flutes_wl_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]);
+FLUTE_DTYPE flutes_wl_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+FLUTE_DTYPE flutes_wl_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+Tree flute(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc);
+Tree flutes_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]);
+Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
+Tree flutes_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
 Tree dmergetree(Tree t1, Tree t2);
 Tree hmergetree(Tree t1, Tree t2, int s[]);
 Tree vmergetree(Tree t1, Tree t2);
 void local_refinement(int deg, Tree *tp, int p);
-DTYPE wirelength(Tree t);
+FLUTE_DTYPE wirelength(Tree t);
 void printtree(Tree t);
 void plottree(Tree t);
 
@@ -158,9 +158,9 @@ void readLUT() {
         }
 }
 
-DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
-        DTYPE minval, l, xu, xl, yu, yl;
-        DTYPE *xs, *ys;
+FLUTE_DTYPE flute_wl(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc) {
+        FLUTE_DTYPE minval, l, xu, xl, yu, yl;
+        FLUTE_DTYPE *xs, *ys;
         int i, j, minidx, degree;
         int *s;
         struct point **ptp, *tmpp;
@@ -168,8 +168,8 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
         
         /* allocate the dynamic pieces on the heap rather than the stack */
         degree = d + 1;
-        xs = (DTYPE *)malloc(sizeof(DTYPE) * (d));
-        ys = (DTYPE *)malloc(sizeof(DTYPE) * (d));
+        xs = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (d));
+        ys = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (d));
         s = (int *)malloc(sizeof(int) * (d));
         pt = (struct point *)malloc(sizeof(struct point) * (d+1));
         ptp = (struct point **)malloc(sizeof(struct point *) * (d+1));
@@ -268,7 +268,7 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
 // The points are (xs[s[i]], ys[i]) for i=0..d-1
 //             or (xs[i], ys[si[i]]) for i=0..d-1
 
-DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+FLUTE_DTYPE flutes_wl_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
         for (i = 0; i < d - 1; i++) {
@@ -295,11 +295,11 @@ DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
 }
 
 // For low-degree, i.e., 2 <= d <= D
-DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
+FLUTE_DTYPE flutes_wl_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]) {
         int k, pi, i, j;
         struct csoln *rlist;
-        DTYPE dd[2 * D - 2];  // 0..D-2 for v, D-1..2*D-3 for h
-        DTYPE minl, sum, l[MPOWV + 1];
+        FLUTE_DTYPE dd[2 * D - 2];  // 0..D-2 for v, D-1..2*D-3 for h
+        FLUTE_DTYPE minl, sum, l[MPOWV + 1];
 
         if (d <= 3)
                 minl = xs[d - 1] - xs[0] + ys[d - 1] - ys[0];
@@ -352,13 +352,13 @@ DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
 }
 
 // For medium-degree, i.e., D+1 <= d
-DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+FLUTE_DTYPE flutes_wl_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
         float pnlty, dx, dy;
         float *score, *penalty;
-        DTYPE xydiff;
-        DTYPE ll, minl, extral;
-        DTYPE *x1, *x2, *y1, *y2;
-        DTYPE *distx, *disty;
+        FLUTE_DTYPE xydiff;
+        FLUTE_DTYPE ll, minl, extral;
+        FLUTE_DTYPE *x1, *x2, *y1, *y2;
+        FLUTE_DTYPE *distx, *disty;
         int i, r, p, maxbp, nbp, bp, ub, lb, n1, n2, newacc;
         int ms, mins, maxs, minsi, maxsi, degree;
         int return_val;
@@ -368,12 +368,12 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         score = (float *)malloc(sizeof(float) * (2 * degree));
         penalty = (float *)malloc(sizeof(float) * (degree));
         
-        x1 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        x2 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        y1 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        y2 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        distx = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        disty = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
+        x1 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        x2 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        y1 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        y2 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        distx = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        disty = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
         si = (int *)malloc(sizeof(int) * (degree));
         s1 = (int *)malloc(sizeof(int) * (degree));
         s2 = (int *)malloc(sizeof(int) * (degree));
@@ -544,7 +544,7 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
                 if (acc >= nbp) acc = nbp - 1;
         }
 
-        minl = (DTYPE)INT_MAX;
+        minl = (FLUTE_DTYPE)INT_MAX;
         for (i = 0; i < acc; i++) {
                 maxbp = 0;
                 for (bp = 1; bp < nbp; bp++)
@@ -658,8 +658,8 @@ static int ordery(const void *a, const void *b) {
         return 0;
 }
 
-Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
-        DTYPE *xs, *ys, minval;
+Tree flute(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc) {
+        FLUTE_DTYPE *xs, *ys, minval;
         int *s;
         int i, j, minidx;
         struct point *pt, **ptp, *tmpp;
@@ -676,8 +676,8 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
                 t.branch[1].y = y[1];
                 t.branch[1].n = 1;
         } else {
-                xs = (DTYPE *)malloc(sizeof(DTYPE) * (d));
-                ys = (DTYPE *)malloc(sizeof(DTYPE) * (d));
+                xs = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (d));
+                ys = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (d));
                 s = (int *)malloc(sizeof(int) * (d));
                 pt = (struct point *)malloc(sizeof(struct point) * (d + 1));
                 ptp = (struct point **)malloc(sizeof(struct point *) * (d + 1));
@@ -770,7 +770,7 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
 // The points are (xs[s[i]], ys[i]) for i=0..d-1
 //             or (xs[i], ys[si[i]]) for i=0..d-1
 
-Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+Tree flutes_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
         for (i = 0; i < d - 1; i++) {
@@ -797,11 +797,11 @@ Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
 }
 
 // For low-degree, i.e., 2 <= d <= D
-Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
+Tree flutes_LD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[]) {
         int k, pi, i, j;
         struct csoln *rlist, *bestrlist;
-        DTYPE dd[2 * D - 2];  // 0..D-2 for v, D-1..2*D-3 for h
-        DTYPE minl, sum, l[MPOWV + 1];
+        FLUTE_DTYPE dd[2 * D - 2];  // 0..D-2 for v, D-1..2*D-3 for h
+        FLUTE_DTYPE minl, sum, l[MPOWV + 1];
         int hflip;
         Tree t;
 
@@ -939,27 +939,27 @@ Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
 }
 
 // For medium-degree, i.e., D+1 <= d
-Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) 
+Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) 
 {
         float *score, *penalty, pnlty, dx, dy;
         int ms, mins, maxs, minsi, maxsi;
         int i, r, p, maxbp, bestbp, bp, nbp, ub, lb, n1, n2, nn1, nn2, newacc;
         int *si, *s1, *s2, degree;
         Tree t, t1, t2, bestt1, bestt2;
-        DTYPE ll, minl, coord1, coord2;
-        DTYPE *distx, *disty, xydiff;
-        DTYPE *x1, *x2, *y1, *y2;
+        FLUTE_DTYPE ll, minl, coord1, coord2;
+        FLUTE_DTYPE *distx, *disty, xydiff;
+        FLUTE_DTYPE *x1, *x2, *y1, *y2;
         
         degree = d + 1;
         score = (float *)malloc(sizeof(float) * (2 * degree));
         penalty = (float *)malloc(sizeof(float) * (degree));
         
-        x1 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        x2 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        y1 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        y2 = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        distx = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        disty = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
+        x1 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        x2 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        y1 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        y2 = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        distx = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        disty = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
         si = (int *)malloc(sizeof(int) * (degree));
         s1 = (int *)malloc(sizeof(int) * (degree));
         s2 = (int *)malloc(sizeof(int) * (degree));
@@ -1142,7 +1142,7 @@ Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
                 if (acc >= nbp) acc = nbp - 1;
         }
 
-        minl = (DTYPE)INT_MAX;
+        minl = (FLUTE_DTYPE)INT_MAX;
         bestt1.branch = bestt2.branch = NULL;
         for (i = 0; i < acc; i++) {
                 maxbp = 0;
@@ -1310,7 +1310,7 @@ Tree dmergetree(Tree t1, Tree t2) {
 Tree hmergetree(Tree t1, Tree t2, int s[]) {
         int i, prev, curr, next, extra, offset1, offset2;
         int p, ii, n1, n2, nn1, nn2;
-        DTYPE coord1, coord2;
+        FLUTE_DTYPE coord1, coord2;
         Tree t;
 
         t.deg = t1.deg + t2.deg - 1;
@@ -1384,7 +1384,7 @@ Tree hmergetree(Tree t1, Tree t2, int s[]) {
 
 Tree vmergetree(Tree t1, Tree t2) {
         int i, prev, curr, next, extra, offset1, offset2;
-        DTYPE coord1, coord2;
+        FLUTE_DTYPE coord1, coord2;
         Tree t;
 
         t.deg = t1.deg + t2.deg - 1;
@@ -1445,16 +1445,16 @@ Tree vmergetree(Tree t1, Tree t2) {
 void local_refinement(int deg, Tree *tp, int p) {
         int d, dd, i, ii, j, prev, curr, next, root;
         int *SteinerPin, *index, *ss, degree;
-        DTYPE *x, *xs, *ys;
+        FLUTE_DTYPE *x, *xs, *ys;
         Tree tt;
         
         degree = deg + 1;
         SteinerPin = (int *)malloc(sizeof(int) * (2 * degree));
         index = (int *)malloc(sizeof(int) * (2 * degree));
-        x = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        xs = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        ys = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
-        ss = (DTYPE *)malloc(sizeof(DTYPE) * (degree));
+        x = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        xs = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        ys = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
+        ss = (FLUTE_DTYPE *)malloc(sizeof(FLUTE_DTYPE) * (degree));
 
         d = tp->deg;
         root = tp->branch[p].n;
@@ -1557,9 +1557,9 @@ void local_refinement(int deg, Tree *tp, int p) {
         return;
 }
 
-DTYPE wirelength(Tree t) {
+FLUTE_DTYPE wirelength(Tree t) {
         int i, j;
-        DTYPE l = 0;
+        FLUTE_DTYPE l = 0;
 
         for (i = 0; i < 2 * t.deg - 2; i++) {
                 j = t.branch[i].n;
