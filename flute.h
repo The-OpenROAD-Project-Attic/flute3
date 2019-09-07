@@ -37,7 +37,7 @@ namespace Flute {
 /*****************************/
 /*  User-Defined Parameters  */
 /*****************************/
-#define ACCURACY 10             // Default accuracy
+#define FLUTE_ACCURACY 10             // Default accuracy
 #define ROUTING 1               // 1 to construct routing, 0 to estimate WL only
 #define LOCAL_REFINEMENT 1      // Suggestion: Set to 1 if ACCURACY >= 5
 #define REMOVE_DUPLICATE_PIN 0  // Remove dup. pin for flute_wl() & flute()
@@ -46,9 +46,6 @@ namespace Flute {
 #define FLUTE_DTYPE int
 #endif
 
-/*************************************/
-/* Internal Parameters and Functions */
-/*************************************/
 #define POWVFILE "POWV9.dat"  // LUT for POWV (Wirelength Vector)
 #define POSTFILE "POST9.dat"  // LUT for POST (Steiner Tree)
 #define D 9                   // LUT is used for d <= D, D <= 9
@@ -86,28 +83,80 @@ extern Tree flutes_MD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int ac
 extern Tree flutes_HD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
 extern Tree flutes_RDP(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc);
 
+inline FLUTE_DTYPE flutes_wl_LMD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
+        if (d <= D) {
+                return flutes_wl_LD(d, xs, ys, s);
+        } else {
+                return flutes_wl_MD(d, xs, ys, s, acc);
+        }
+}
 
-#if REMOVE_DUPLICATE_PIN == 1
-#define flutes_wl(d, xs, ys, s, acc) flutes_wl_RDP(d, xs, ys, s, acc)
-#define flutes(d, xs, ys, s, acc) flutes_RDP(d, xs, ys, s, acc)
-#else
-#define flutes_wl(d, xs, ys, s, acc) flutes_wl_ALLD(d, xs, ys, s, acc)
-#define flutes(d, xs, ys, s, acc) flutes_ALLD(d, xs, ys, s, acc)
-#endif
+inline FLUTE_DTYPE flutes_wl_ALLD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
+        return flutes_wl_LMD(d, xs, ys, s, acc);
+}
 
-#define flutes_wl_ALLD(d, xs, ys, s, acc) flutes_wl_LMD(d, xs, ys, s, acc)
-#define flutes_ALLD(d, xs, ys, s, acc)    \
-        (d <= D ? flutes_LD(d, xs, ys, s) \
-                : flutes_MD(d, xs, ys, s, acc))
+inline FLUTE_DTYPE flutes_wl(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
+        if (REMOVE_DUPLICATE_PIN == 1) {
+                return flutes_wl_RDP(d, xs, ys, s, acc);
+        } else {
+                return flutes_wl_ALLD(d, xs, ys, s, acc);
+        }
+}
 
-#define flutes_wl_LMD(d, xs, ys, s, acc) \
-        (d <= D ? flutes_wl_LD(d, xs, ys, s) : flutes_wl_MD(d, xs, ys, s, acc))
-#define flutes_LMD(d, xs, ys, s, acc) \
-        (d <= D ? flutes_LD(d, xs, ys, s) : flutes_MD(d, xs, ys, s, acc))
+inline Tree flutes_ALLD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
+        if (d <= D) {
+                return flutes_LD(d, xs, ys, s);
+        } else {
+                return flutes_MD(d, xs, ys, s, acc);
+        }
+}
 
-#define maxFlute(x, y) ((x) > (y) ? (x) : (y))
-#define minFlute(x, y) ((x) < (y) ? (x) : (y))
-#define abs(x) ((x) < 0 ? (-x) : (x))
-#define ADIFF(x, y) ((x) > (y) ? (x - y) : (y - x))  // Absolute difference
+inline Tree flutes(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
+        if (REMOVE_DUPLICATE_PIN == 1) {
+                return flutes_RDP(d, xs, ys, s, acc);
+        } else {
+                return flutes_ALLD(d, xs, ys, s, acc);
+        }
+}
+
+inline Tree flutes_LMD(int d, FLUTE_DTYPE xs[], FLUTE_DTYPE ys[], int s[], int acc) {
+        if (d <= D) {
+                return flutes_LD(d, xs, ys, s);
+        } else {
+                return flutes_MD(d, xs, ys, s, acc);
+        }
+}
+
+template <class T> inline T maxFlute(T x, T y) {
+        if (x > y) {
+                return x;
+        } else {
+                return y;
+        }
+}
+
+template <class T> inline T minFlute(T x, T y) {
+        if (x < y) {
+                return x;
+        } else {
+                return y;
+        }
+}
+
+template <class T> inline T abs(T x) {
+        if (x < 0) {
+                return (-x);
+        } else {
+                return x;
+        }
+}
+
+template <class T> inline T ADIFF(T x, T y) {
+        if (x > y) {
+            return (x - y);
+        } else {
+            return (y - x);
+        }
+}
 }  // namespace Flute
 #endif /* __FLUTE_H__ */
