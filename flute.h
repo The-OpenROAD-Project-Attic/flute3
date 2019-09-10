@@ -60,23 +60,21 @@ typedef struct {
 } Tree;
 
 // User-Callable Functions
-extern void readLUT();
-extern DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
-//Macro: DTYPE flutes_wl(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
-//Macro: Tree flutes(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern DTYPE wirelength(Tree t);
-extern void printtree(Tree t);
-extern void plottree(Tree t);
+void readLUT();
+DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
+Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
+DTYPE wirelength(Tree t);
+void printtree(Tree t);
+void plottree(Tree t);
 
 // Other useful functions
-extern DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-extern DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-extern Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flutes_HD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-extern Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
+DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
+Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+Tree flutes_HD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
 
 inline DTYPE flutes_wl_LMD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         if (d <= FLUTE_D) {
@@ -119,14 +117,6 @@ inline Tree flutes_LMD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
                 return flutes_LD(d, xs, ys, s);
         } else {
                 return flutes_MD(d, xs, ys, s, acc);
-        }
-}
-
-template <class T> inline T ADIFF(T x, T y) {
-        if (x > y) {
-            return (x - y);
-        } else {
-            return (y - x);
         }
 }
 }  // namespace Flute

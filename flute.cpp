@@ -39,14 +39,14 @@
 namespace Flute {
 
 #if FLUTE_D <= 7
-#define MGROUP 5040 / 4  // Max. # of groups, 7! = 5040
-#define MPOWV 15         // Max. # of POWVs per group
+        #define MGROUP 5040 / 4  // Max. # of groups, 7! = 5040
+        #define MPOWV 15         // Max. # of POWVs per group
 #elif FLUTE_D == 8
-#define MGROUP 40320 / 4  // Max. # of groups, 8! = 40320
-#define MPOWV 33          // Max. # of POWVs per group
+        #define MGROUP 40320 / 4  // Max. # of groups, 8! = 40320
+        #define MPOWV 33          // Max. # of POWVs per group
 #elif FLUTE_D == 9
-#define MGROUP 362880 / 4  // Max. # of groups, 9! = 362880
-#define MPOWV 79           // Max. # of POWVs per group
+        #define MGROUP 362880 / 4  // Max. # of groups, 9! = 362880
+        #define MPOWV 79           // Max. # of POWVs per group
 #endif
 int numgrp[10] = {0, 0, 0, 0, 6, 30, 180, 1260, 10080, 90720};
 
@@ -56,7 +56,9 @@ struct csoln {
         unsigned char rowcol[FLUTE_D - 2];  // row = rowcol[]/16, col = rowcol[]%16,
         unsigned char neighbor[2 * FLUTE_D - 2];
 };
+
 struct csoln *LUT[FLUTE_D + 1][MGROUP];  // storing 4 .. FLUTE_D
+
 int numsoln[FLUTE_D + 1][MGROUP];
 
 struct point {
@@ -64,22 +66,18 @@ struct point {
         int o;
 };
 
-void readLUT();
-DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
-DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
-Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
 Tree dmergetree(Tree t1, Tree t2);
 Tree hmergetree(Tree t1, Tree t2, int s[]);
 Tree vmergetree(Tree t1, Tree t2);
 void local_refinement(int deg, Tree *tp, int p);
-DTYPE wirelength(Tree t);
-void printtree(Tree t);
-void plottree(Tree t);
+
+template <class T> inline T ADIFF(T x, T y) {
+        if (x > y) {
+            return (x - y);
+        } else {
+            return (y - x);
+        }
+}
 
 void readLUT() {
         unsigned char charnum[256], line[32], *linep, c;
@@ -110,7 +108,7 @@ void readLUT() {
         }
 #endif
 
-        for (d = 4; d <=FLUTE_D; d++) {
+        for (d = 4; d <= FLUTE_D; d++) {
                 fscanf(fpwv, "d=%d\n", &d);
 #if FLUTE_ROUTING == 1
                 fscanf(fprt, "d=%d\n", &d);
@@ -295,11 +293,11 @@ DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         return flutes_wl_ALLD(d, xs, ys, s, acc);
 }
 
-// For low-degree, i.e., 2 <= d <= D
+// For low-degree, i.e., 2 <= d <= FLUTE_D
 DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         int k, pi, i, j;
         struct csoln *rlist;
-        DTYPE dd[2 *FLUTE_D- 2];  // 0..D-2 for v, D-1..2*D-3 for h
+        DTYPE dd[2 * FLUTE_D - 2];  // 0..FLUTE_D-2 for v, FLUTE_D-1..2*D-3 for h
         DTYPE minl, sum, l[MPOWV + 1];
 
         if (d <= 3)
@@ -352,7 +350,7 @@ DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         return minl;
 }
 
-// For medium-degree, i.e., D+1 <= d
+// For medium-degree, i.e., FLUTE_D+1 <= d
 DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         float pnlty, dx, dy;
         float *score, *penalty;
@@ -797,11 +795,11 @@ Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         return flutes_ALLD(d, xs, ys, s, acc);
 }
 
-// For low-degree, i.e., 2 <= d <= D
+// For low-degree, i.e., 2 <= d <= FLUTE_D
 Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         int k, pi, i, j;
         struct csoln *rlist, *bestrlist;
-        DTYPE dd[2 *FLUTE_D- 2];  // 0..D-2 for v, D-1..2*D-3 for h
+        DTYPE dd[2 * FLUTE_D - 2];  // 0..D-2 for v, D-1..2*D-3 for h
         DTYPE minl, sum, l[MPOWV + 1];
         int hflip;
         Tree t;
@@ -939,7 +937,7 @@ Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         return t;
 }
 
-// For medium-degree, i.e., D+1 <= d
+// For medium-degree, i.e., FLUTE_D+1 <= d
 Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) 
 {
         float *score, *penalty, pnlty, dx, dy;
@@ -1229,7 +1227,7 @@ Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
                 }
         }
 
-#if LOCAL_REFINEMENT == 1
+#if FLUTE_LOCAL_REFINEMENT == 1
         if (BreakInX(bestbp)) {
                 t = hmergetree(bestt1, bestt2, s);
                 local_refinement(degree, &t, si[BreakPt(bestbp)]);
@@ -1500,7 +1498,7 @@ void local_refinement(int deg, Tree *tp, int p) {
                 }
         }
 
-        if (4 <= dd && dd <=FLUTE_D) {
+        if (4 <= dd && dd <= FLUTE_D) {
                 // Find Steiner nodes that are directly connected to root
                 ii = dd;
                 for (i = 0; i < dd; i++) {
