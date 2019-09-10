@@ -1,11 +1,10 @@
 Flute3
 ======================
 
-**Flute3** is an open-source rectilinear minimal tree algorithm.
+**Flute3** is an open-source rectilinear minimal tree algorithm with UFRGS improvements.
+This repository uses CMake, C++ namespace, and have dynamic memory allocation nets degrees.
 
-The algorithm base is from FastRoute4.1
-
-The FastRoute4.1 version was received from <yuexu@iastate.edu> on June 15, 2019, with the BSD-3 open source license as given in the FastRoute [website](http://home.eng.iastate.edu/~cnchu/FastRoute.html#License).
+The algorithm base is from FastRoute4.1 version, that was received from <yuexu@iastate.edu> on June 15, 2019, with the BSD-3 open source license as given in the FastRoute [website](http://home.eng.iastate.edu/~cnchu/FastRoute.html#License).
 
 ## Getting Started
 ### Pre-Requisite
