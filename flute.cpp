@@ -1590,4 +1590,12 @@ void plottree(Tree t) {
                        t.branch[t.branch[i].n].y);
         }
 }
+
+void free_tree(Tree t) {
+        if(t.deg > 0){
+                free(t.branch);
+        }
+        
+        t.deg = 0 ;
+}
 }  // namespace Flute
