@@ -215,7 +215,7 @@ FLUTE_DTYPE flute_wl(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc) {
                         ptp[minidx] = tmpp;
                 }
 
-#if REMOVE_DUPLICATE_PIN == 1
+#if FLUTE_REMOVE_DUPLICATE_PIN == 1
                 ptp[d] = &pt[d];
                 ptp[d]->x = ptp[d]->y = -999999;
                 j = 0;
@@ -708,7 +708,7 @@ Tree flute(int d, FLUTE_DTYPE x[], FLUTE_DTYPE y[], int acc) {
                         qsort(ptp, d, sizeof(struct point *), orderx);
                 }
 
-#if REMOVE_DUPLICATE_PIN == 1
+#if FLUTE_REMOVE_DUPLICATE_PIN == 1
                 ptp[d] = &pt[d];
                 ptp[d]->x = ptp[d]->y = -999999;
                 j = 0;
