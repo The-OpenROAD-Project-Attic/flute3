@@ -35,9 +35,6 @@
 #include <limits.h>
 #include <math.h>
 #include <string>
-#include <iostream>
-#include <sstream>
-#include <fstream>
 #include <algorithm>
 #include "flute.h"
 
@@ -164,13 +161,18 @@ std::string base64_decode(std::string const& encoded_string) {
   return ret;
 }
 
-#include "etc/POST9.b64var"
-#include "etc/POWV9.b64var"
+// echo "std::string powv9 = \"" > POWV9.var; base64 -i POWV9.dat >> POWV9.var; echo \"\; >> POWV9.var
+#include "etc/POWV9.var"
+// echo "std::string post9 = \"" > POST9.var; base64 -i POST9.dat >> POST9.var; echo \"\; >> POST9.var
+#include "etc/POST9.var"
 
 void
-mismatch()
+mismatch(const char *str, const char *ptr, int cnt)
 {
-  printf("mismatch\n");
+  char line[32];
+  strncpy(line, ptr, 32);
+  printf("mismatch at %ld %s\n",ptr-str, line);
+  printf("luse\n");
 }
 
 bool
@@ -196,61 +198,64 @@ void readLUT() {
       charnum[i] = 0;
   }
   fpwv = fopen(FLUTE_POWVFILE, "r");
-  const char *fpwv_string = base64_decode(powv9).c_str();
-  std::istringstream fpwv_stream(fpwv_string);
+  std::string pwv_string = base64_decode(powv9);
+  const char *pwv_str = pwv_string.c_str();
+  const char *pwv = pwv_str;
 
 #if FLUTE_ROUTING == 1
   fprt = fopen(FLUTE_POSTFILE, "r");
-  const char *frpt_string = base64_decode(post9).c_str();
-  std::istringstream fprt_stream(frpt_string);
+  std::string prt_string = base64_decode(post9);
+  const char *prt_str = prt_string.c_str();
+  const char *prt = prt_str;
 #endif
 
   for (d = 4; d <= FLUTE_D; d++) {
     fscanf(fpwv, "d=%d\n", &d);
-    char d_equal[3];
-    fpwv_stream.get(d_equal, 3); // "d="
-    fpwv_stream >> d1;
-    fpwv_stream.get();   // '\n'
+    int char_cnt;
+    sscanf(pwv, "d=%d\n%n", &d1, &char_cnt);
     if (d1 != d)
-      mismatch();
+      mismatch(pwv_str, pwv, char_cnt);
+    pwv += char_cnt;
 #if FLUTE_ROUTING == 1
     fscanf(fprt, "d=%d\n", &d);
-    fprt_stream.get(d_equal, 3); // "d="
-    fprt_stream >> d1;
-    fprt_stream.get();   // '\n'
+    sscanf(prt, "d=%d\n%n", &d1, &char_cnt);
     if (d1 != d)
-      mismatch();
+      mismatch(prt_str, prt, char_cnt);
+    prt += char_cnt;
 #endif
     for (k = 0; k < numgrp[d]; k++) {
-      if (d == 9 && k == 32441)
-	printf("luse\n");
       unsigned char ns_char = fgetc(fpwv);
       ns = (int)charnum[ns_char];
-      unsigned char ns_char1 = fpwv_stream.get();
+      unsigned char ns_char1 = *pwv;
       ns1 = (int)charnum[ns_char1];
       if (ns1 != ns)
-	mismatch();
+	mismatch(pwv_str, pwv, char_cnt);
+      pwv++;
       if (ns == 0) {  // same as some previous group
 	fscanf(fpwv, "%d\n", &kk);
-	fpwv_stream >> kk1;
-	fpwv_stream.get(); // \n
+	sscanf(pwv, "%d\n%n", &kk1, &char_cnt);
 	if (kk1 != kk)
-	  mismatch();
+	  mismatch(pwv_str, pwv, char_cnt);
+	pwv += char_cnt;
 	numsoln[d][k] = numsoln[d][kk];
 	LUT[d][k] = LUT[d][kk];
       } else {
 	fgetc(fpwv);  // '\n'
-	fpwv_stream.get();   // '\n'
+	pwv++;   // '\n'
 	numsoln[d][k] = ns;
 	p = (struct csoln *)malloc(ns * sizeof(struct csoln));
 	LUT[d][k] = p;
 	for (i = 1; i <= ns; i++) {
 	  linep = (unsigned char *)fgets((char *)line, 32, fpwv);
-	  fpwv_stream.get(line1, 32);
-	  fpwv_stream.get();   // '\n'
+	  const char *line_begin = pwv;
+	  char *lp;
+	  for (lp = line1; *pwv != '\n'; )
+	    *lp++ = *pwv++;
+	  *lp++ = *pwv++;   // '\n'
+	  *lp++ = '\0';
 	  linep1 = line1;
 	  if (check(linep, linep1))
-	    mismatch();
+	    mismatch(pwv_str, line_begin, 32);
 	  p->parent = charnum[*(linep++)];
 	  j = 0;
 	  while ((p->seg[j++] = charnum[*(linep++)]) != 0)
@@ -261,21 +266,29 @@ void readLUT() {
 #if FLUTE_ROUTING == 1
 	  nn = 2 * d - 2;
 	  fread(line, 1, d - 2, fprt);
-	  fprt_stream.get(line1, d - 2 + 1, '\0');
 	  linep = line;
+	  line_begin = prt;
+	  lp = line1;
+	  for (int i = 0; i < d - 2; i++)
+	    *lp++ = *prt++;
+	  *lp++ = '\0';
 	  linep1 = line1;
 	  if (check(linep, linep1))
-	    mismatch();
+	    mismatch(prt_str, line_begin, d - 2);
 	  for (j = d; j < nn; j++) {
 	    c = charnum[*(linep++)];
 	    p->rowcol[j - d] = c;
 	  }
 	  fread(line, 1, nn / 2 + 1, fprt);
-	  fprt_stream.get(line1, nn / 2 + 1 + 1, '\0');
-	  linep = line;  // last char \n
-	  linep1 = line1;  // last char \n
+	  linep = line;
+	  line_begin = prt;
+	  lp = line1;
+	  for (int i = 0; i < nn / 2 + 1; i++)
+	    *lp++ = *prt++;
+	  *lp++ = '\0';
+	  linep1 = line1;
 	  if (check(linep, linep1))
-	    mismatch();
+	    mismatch(prt_str, line_begin, nn / 2 + 1);
 	  for (j = 0; j < nn;) {
 	    c = *(linep++);
 	    p->neighbor[j++] = c / 16;
