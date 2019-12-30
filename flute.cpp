@@ -29,10 +29,15 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <math.h>
+#include <string>
+#include <iostream>
+#include <sstream>
+#include <fstream>
 #include <algorithm>
 #include "flute.h"
 
@@ -79,82 +84,209 @@ template <class T> inline T ADIFF(T x, T y) {
         }
 }
 
+////////////////////////////////////////////////////////////////
+
+/* 
+   base64.cpp and base64.h
+
+   Copyright (C) 2004-2008 René Nyffenegger
+
+   This source code is provided 'as-is', without any express or implied
+   warranty. In no event will the author be held liable for any damages
+   arising from the use of this software.
+
+   Permission is granted to anyone to use this software for any purpose,
+   including commercial applications, and to alter it and redistribute it
+   freely, subject to the following restrictions:
+
+   1. The origin of this source code must not be misrepresented; you must not
+      claim that you wrote the original source code. If you use this source code
+      in a product, an acknowledgment in the product documentation would be
+      appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+      misrepresented as being the original source code.
+
+   3. This notice may not be removed or altered from any source distribution.
+
+   René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+
+*/
+
+static const std::string base64_chars = 
+             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+             "abcdefghijklmnopqrstuvwxyz"
+             "0123456789+/";
+
+
+static inline bool is_base64(unsigned char c) {
+  return (isalnum(c) || (c == '+') || (c == '/'));
+}
+
+std::string base64_decode(std::string const& encoded_string) {
+  int in_len = encoded_string.size();
+  int i = 0;
+  int j = 0;
+  int in_ = 0;
+   char char_array_4[4], char_array_3[3];
+  std::string ret;
+
+  while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
+    char_array_4[i++] = encoded_string[in_]; in_++;
+    if (i ==4) {
+      for (i = 0; i <4; i++)
+        char_array_4[i] = base64_chars.find(char_array_4[i]);
+
+      char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+      char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+      for (i = 0; (i < 3); i++)
+        ret += char_array_3[i];
+      i = 0;
+    }
+  }
+
+  if (i) {
+    for (j = i; j <4; j++)
+      char_array_4[j] = 0;
+
+    for (j = 0; j <4; j++)
+      char_array_4[j] = base64_chars.find(char_array_4[j]);
+
+    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+    char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+    for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
+  }
+
+  return ret;
+}
+
+#include "etc/POST9.b64var"
+#include "etc/POWV9.b64var"
+
+void
+mismatch()
+{
+  printf("mismatch\n");
+}
+
+bool
+check(unsigned char *l1, char *l2)
+{
+  return strncmp((char*) l1, l2, strlen(l2)) != 0;
+}
+
 void readLUT() {
-        unsigned char charnum[256], line[32], *linep, c;
-        FILE *fpwv, *fprt;
-        struct csoln *p;
-        int d, i, j, k, kk, ns, nn;
+  unsigned char charnum[256], line[32], *linep, c;
+  char charnum1[256], line1[32], *linep1, c1;
+  FILE *fpwv, *fprt;
+  struct csoln *p;
+  int d, i, j, k, kk, ns, nn;
+  int d1, i1, j1, k1, kk1, ns1, nn1;
 
-        for (i = 0; i <= 255; i++) {
-                if ('0' <= i && i <= '9')
-                        charnum[i] = i - '0';
-                else if (i >= 'A')
-                        charnum[i] = i - 'A' + 10;
-                else  // if (i=='$' || i=='\n' || ... )
-                        charnum[i] = 0;
-        }
-
-        fpwv = fopen(FLUTE_POWVFILE, "r");
-        if (fpwv == NULL) {
-                printf("Error in opening %s\n", FLUTE_POWVFILE);
-                exit(1);
-        }
+  for (i = 0; i <= 255; i++) {
+    if ('0' <= i && i <= '9')
+      charnum1[i] = charnum[i] = i - '0';
+    else if (i >= 'A')
+      charnum[i] = i - 'A' + 10;
+    else  // if (i=='$' || i=='\n' || ... )
+      charnum[i] = 0;
+  }
+  fpwv = fopen(FLUTE_POWVFILE, "r");
+  const char *fpwv_string = base64_decode(powv9).c_str();
+  std::istringstream fpwv_stream(fpwv_string);
 
 #if FLUTE_ROUTING == 1
-        fprt = fopen(FLUTE_POSTFILE, "r");
-        if (fprt == NULL) {
-                printf("Error in opening %s\n", FLUTE_POSTFILE);
-                exit(1);
-        }
+  fprt = fopen(FLUTE_POSTFILE, "r");
+  const char *frpt_string = base64_decode(post9).c_str();
+  std::istringstream fprt_stream(frpt_string);
 #endif
 
-        for (d = 4; d <= FLUTE_D; d++) {
-                fscanf(fpwv, "d=%d\n", &d);
+  for (d = 4; d <= FLUTE_D; d++) {
+    fscanf(fpwv, "d=%d\n", &d);
+    char d_equal[3];
+    fpwv_stream.get(d_equal, 3); // "d="
+    fpwv_stream >> d1;
+    fpwv_stream.get();   // '\n'
+    if (d1 != d)
+      mismatch();
 #if FLUTE_ROUTING == 1
-                fscanf(fprt, "d=%d\n", &d);
+    fscanf(fprt, "d=%d\n", &d);
+    fprt_stream.get(d_equal, 3); // "d="
+    fprt_stream >> d1;
+    fprt_stream.get();   // '\n'
+    if (d1 != d)
+      mismatch();
 #endif
-                for (k = 0; k < numgrp[d]; k++) {
-                        ns = (int)charnum[fgetc(fpwv)];
-
-                        if (ns == 0) {  // same as some previous group
-                                fscanf(fpwv, "%d\n", &kk);
-                                numsoln[d][k] = numsoln[d][kk];
-                                LUT[d][k] = LUT[d][kk];
-                        } else {
-                                fgetc(fpwv);  // '\n'
-                                numsoln[d][k] = ns;
-                                p = (struct csoln *)malloc(ns * sizeof(struct csoln));
-                                LUT[d][k] = p;
-                                for (i = 1; i <= ns; i++) {
-                                        linep = (unsigned char *)fgets((char *)line, 32, fpwv);
-                                        p->parent = charnum[*(linep++)];
-                                        j = 0;
-                                        while ((p->seg[j++] = charnum[*(linep++)]) != 0)
-                                                ;
-                                        j = 10;
-                                        while ((p->seg[j--] = charnum[*(linep++)]) != 0)
-                                                ;
+    for (k = 0; k < numgrp[d]; k++) {
+      if (d == 9 && k == 32441)
+	printf("luse\n");
+      unsigned char ns_char = fgetc(fpwv);
+      ns = (int)charnum[ns_char];
+      unsigned char ns_char1 = fpwv_stream.get();
+      ns1 = (int)charnum[ns_char1];
+      if (ns1 != ns)
+	mismatch();
+      if (ns == 0) {  // same as some previous group
+	fscanf(fpwv, "%d\n", &kk);
+	fpwv_stream >> kk1;
+	fpwv_stream.get(); // \n
+	if (kk1 != kk)
+	  mismatch();
+	numsoln[d][k] = numsoln[d][kk];
+	LUT[d][k] = LUT[d][kk];
+      } else {
+	fgetc(fpwv);  // '\n'
+	fpwv_stream.get();   // '\n'
+	numsoln[d][k] = ns;
+	p = (struct csoln *)malloc(ns * sizeof(struct csoln));
+	LUT[d][k] = p;
+	for (i = 1; i <= ns; i++) {
+	  linep = (unsigned char *)fgets((char *)line, 32, fpwv);
+	  fpwv_stream.get(line1, 32);
+	  fpwv_stream.get();   // '\n'
+	  linep1 = line1;
+	  if (check(linep, linep1))
+	    mismatch();
+	  p->parent = charnum[*(linep++)];
+	  j = 0;
+	  while ((p->seg[j++] = charnum[*(linep++)]) != 0)
+	    ;
+	  j = 10;
+	  while ((p->seg[j--] = charnum[*(linep++)]) != 0)
+	    ;
 #if FLUTE_ROUTING == 1
-                                        nn = 2 * d - 2;
-                                        fread(line, 1, d - 2, fprt);
-                                        linep = line;
-                                        for (j = d; j < nn; j++) {
-                                                c = charnum[*(linep++)];
-                                                p->rowcol[j - d] = c;
-                                        }
-                                        fread(line, 1, nn / 2 + 1, fprt);
-                                        linep = line;  // last char \n
-                                        for (j = 0; j < nn;) {
-                                                c = *(linep++);
-                                                p->neighbor[j++] = c / 16;
-                                                p->neighbor[j++] = c % 16;
-                                        }
+	  nn = 2 * d - 2;
+	  fread(line, 1, d - 2, fprt);
+	  fprt_stream.get(line1, d - 2 + 1, '\0');
+	  linep = line;
+	  linep1 = line1;
+	  if (check(linep, linep1))
+	    mismatch();
+	  for (j = d; j < nn; j++) {
+	    c = charnum[*(linep++)];
+	    p->rowcol[j - d] = c;
+	  }
+	  fread(line, 1, nn / 2 + 1, fprt);
+	  fprt_stream.get(line1, nn / 2 + 1 + 1, '\0');
+	  linep = line;  // last char \n
+	  linep1 = line1;  // last char \n
+	  if (check(linep, linep1))
+	    mismatch();
+	  for (j = 0; j < nn;) {
+	    c = *(linep++);
+	    p->neighbor[j++] = c / 16;
+	    p->neighbor[j++] = c % 16;
+	  }
 #endif
-                                        p++;
-                                }
-                        }
-                }
-        }
+	  p++;
+	}
+      }
+    }
+  }
 }
 
 DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
@@ -1598,4 +1730,5 @@ void free_tree(Tree t) {
         
         t.deg = 0 ;
 }
+
 }  // namespace Flute
