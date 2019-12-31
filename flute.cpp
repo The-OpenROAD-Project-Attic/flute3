@@ -59,9 +59,15 @@ struct csoln {
         unsigned char neighbor[2 * FLUTE_D - 2];
 };
 
-struct csoln *LUT[FLUTE_D + 1][MGROUP];  // storing 4 .. FLUTE_D
+// struct csoln *LUT[FLUTE_D + 1][MGROUP];  // storing 4 .. FLUTE_D
+// int numsoln[FLUTE_D + 1][MGROUP];
 
-int numsoln[FLUTE_D + 1][MGROUP];
+typedef struct csoln ***LUT_TYPE;
+typedef int **NUMSOLN_TYPE;
+
+// Dynamically allocate LUTs.
+LUT_TYPE LUT;
+NUMSOLN_TYPE numsoln;
 
 struct point {
         DTYPE x, y;
@@ -79,6 +85,90 @@ template <class T> inline T ADIFF(T x, T y) {
         } else {
             return (y - x);
         }
+}
+
+////////////////////////////////////////////////////////////////
+
+void readLUTfiles() {
+        unsigned char charnum[256], line[32], *linep, c;
+        FILE *fpwv, *fprt;
+        struct csoln *p;
+        int d, i, j, k, kk, ns, nn;
+
+        for (i = 0; i <= 255; i++) {
+                if ('0' <= i && i <= '9')
+                        charnum[i] = i - '0';
+                else if (i >= 'A')
+                        charnum[i] = i - 'A' + 10;
+                else  // if (i=='$' || i=='\n' || ... )
+                        charnum[i] = 0;
+        }
+
+        fpwv = fopen(FLUTE_POWVFILE, "r");
+        if (fpwv == NULL) {
+                printf("Error in opening %s\n", FLUTE_POWVFILE);
+                exit(1);
+        }
+
+#if FLUTE_ROUTING == 1
+        fprt = fopen(FLUTE_POSTFILE, "r");
+        if (fprt == NULL) {
+                printf("Error in opening %s\n", FLUTE_POSTFILE);
+                exit(1);
+        }
+#endif
+
+        for (d = 4; d <= FLUTE_D; d++) {
+                fscanf(fpwv, "d=%d\n", &d);
+#if FLUTE_ROUTING == 1
+                fscanf(fprt, "d=%d\n", &d);
+#endif
+                for (k = 0; k < numgrp[d]; k++) {
+                        ns = (int)charnum[fgetc(fpwv)];
+
+                        if (ns == 0) {  // same as some previous group
+                                fscanf(fpwv, "%d\n", &kk);
+                                numsoln[d][k] = numsoln[d][kk];
+                                LUT[d][k] = LUT[d][kk];
+                        } else {
+                                fgetc(fpwv);  // '\n'
+                                numsoln[d][k] = ns;
+                                p = (struct csoln *)malloc(ns * sizeof(struct csoln));
+                                LUT[d][k] = p;
+                                for (i = 1; i <= ns; i++) {
+                                        linep = (unsigned char *)fgets((char *)line, 32, fpwv);
+                                        p->parent = charnum[*(linep++)];
+                                        j = 0;
+                                        while ((p->seg[j++] = charnum[*(linep++)]) != 0)
+                                                ;
+                                        j = 10;
+                                        while ((p->seg[j--] = charnum[*(linep++)]) != 0)
+                                                ;
+#if FLUTE_ROUTING == 1
+                                        nn = 2 * d - 2;
+                                        fread(line, 1, d - 2, fprt);
+                                        linep = line;
+                                        for (j = d; j < nn; j++) {
+                                                c = charnum[*(linep++)];
+                                                p->rowcol[j - d] = c;
+                                        }
+                                        fread(line, 1, nn / 2 + 1, fprt);
+                                        linep = line;  // last char \n
+                                        for (j = 0; j < nn;) {
+                                                c = *(linep++);
+                                                p->neighbor[j++] = c / 16;
+                                                p->neighbor[j++] = c % 16;
+                                        }
+#endif
+                                        p++;
+                                }
+                        }
+                }
+        }
+	fclose(fpwv);
+#if FLUTE_ROUTING == 1
+	fclose(fprt);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////
@@ -181,9 +271,39 @@ check(unsigned char *l1, char *l2)
   return strncmp((char*) l1, l2, strlen(l2)) != 0;
 }
 
+static void
+initLUT(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln_);
+static void
+checkLUT(LUT_TYPE LUT,
+	 NUMSOLN_TYPE numsoln_);
+
 void readLUT() {
+  LUT = new struct csoln **[FLUTE_D + 1];
+  numsoln = new int*[FLUTE_D + 1];
+  for (int d = 4; d <= FLUTE_D; d++) {
+    LUT[d] = new struct csoln *[MGROUP];
+    numsoln[d] = new int[MGROUP];
+  }
+  readLUTfiles();
+#if 1
+  // Temporaries to compare to file results.
+  LUT_TYPE LUT_ = new struct csoln **[FLUTE_D + 1];
+  NUMSOLN_TYPE numsoln_ = new int*[FLUTE_D + 1];
+  for (int d = 4; d <= FLUTE_D; d++) {
+    LUT_[d] = new struct csoln *[MGROUP];
+    numsoln_[d] = new int[MGROUP];
+  }
+  initLUT(LUT_, numsoln_);
+  checkLUT(LUT_, numsoln_);
+#endif
+}
+
+static void
+initLUT(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln) {
   unsigned char charnum[256], line[32], *linep, c;
-  char charnum1[256], line1[32], *linep1, c1;
+  char line1[32], *linep1, c1;
   FILE *fpwv, *fprt;
   struct csoln *p;
   int d, i, j, k, kk, ns, nn;
@@ -191,7 +311,7 @@ void readLUT() {
 
   for (i = 0; i <= 255; i++) {
     if ('0' <= i && i <= '9')
-      charnum1[i] = charnum[i] = i - '0';
+      charnum[i] = i - '0';
     else if (i >= 'A')
       charnum[i] = i - 'A' + 10;
     else  // if (i=='$' || i=='\n' || ... )
@@ -298,6 +418,23 @@ void readLUT() {
 	  p++;
 	}
       }
+    }
+  }
+  fclose(fpwv);
+#if FLUTE_ROUTING == 1
+  fclose(fprt);
+#endif
+}
+
+static void
+checkLUT(LUT_TYPE LUT_,
+	 NUMSOLN_TYPE numsoln_) {
+  for (int d = 4; d <= FLUTE_D; d++) {
+    for (int k = 0; k < numgrp[d]; k++) {
+      if (numsoln_[d][k] != numsoln[d][k])
+	printf("numsoln[%d][%d] mismatch\n", d, k);
+      if (LUT_[d][k] != LUT_[d][k])
+	printf("LUT[%d][%d] mismatch\n", d, k);
     }
   }
 }
