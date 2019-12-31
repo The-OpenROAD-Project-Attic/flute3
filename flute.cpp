@@ -330,27 +330,24 @@ initLUT(LUT_TYPE LUT,
 #endif
 
   for (d = 4; d <= FLUTE_D; d++) {
-    fscanf(fpwv, "d=%d\n", &d);
+    fscanf(fpwv, "d=%d\n", &d1);
     int char_cnt;
-    sscanf(pwv, "d=%d\n%n", &d1, &char_cnt);
+    sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
     if (d1 != d)
       mismatch(pwv_str, pwv, char_cnt);
     pwv += char_cnt;
 #if FLUTE_ROUTING == 1
-    fscanf(fprt, "d=%d\n", &d);
-    sscanf(prt, "d=%d\n%n", &d1, &char_cnt);
+    fscanf(fprt, "d=%d\n", &d1);
+    sscanf(prt, "d=%d\n%n", &d, &char_cnt);
     if (d1 != d)
       mismatch(prt_str, prt, char_cnt);
     prt += char_cnt;
 #endif
     for (k = 0; k < numgrp[d]; k++) {
-      unsigned char ns_char = fgetc(fpwv);
-      ns = (int)charnum[ns_char];
-      unsigned char ns_char1 = *pwv;
-      ns1 = (int)charnum[ns_char1];
+      ns1 = (int)charnum[fgetc(fpwv)];
+      ns = (int)charnum[static_cast<unsigned char>(*pwv++)];
       if (ns1 != ns)
 	mismatch(pwv_str, pwv, char_cnt);
-      pwv++;
       if (ns == 0) {  // same as some previous group
 	fscanf(fpwv, "%d\n", &kk);
 	sscanf(pwv, "%d\n%n", &kk1, &char_cnt);
@@ -363,17 +360,17 @@ initLUT(LUT_TYPE LUT,
 	fgetc(fpwv);  // '\n'
 	pwv++;   // '\n'
 	numsoln[d][k] = ns;
-	p = (struct csoln *)malloc(ns * sizeof(struct csoln));
+	p = new struct csoln[ns];
 	LUT[d][k] = p;
 	for (i = 1; i <= ns; i++) {
-	  linep = (unsigned char *)fgets((char *)line, 32, fpwv);
+	  linep1 = fgets((char *)line, 32, fpwv);
 	  const char *line_begin = pwv;
 	  char *lp;
 	  for (lp = line1; *pwv != '\n'; )
 	    *lp++ = *pwv++;
 	  *lp++ = *pwv++;   // '\n'
 	  *lp++ = '\0';
-	  linep1 = line1;
+	  linep = (unsigned char *) line1;
 	  if (check(linep, linep1))
 	    mismatch(pwv_str, line_begin, 32);
 	  p->parent = charnum[*(linep++)];
@@ -431,10 +428,18 @@ checkLUT(LUT_TYPE LUT_,
 	 NUMSOLN_TYPE numsoln_) {
   for (int d = 4; d <= FLUTE_D; d++) {
     for (int k = 0; k < numgrp[d]; k++) {
-      if (numsoln_[d][k] != numsoln[d][k])
+      int ns = numsoln[d][k];
+      int ns_ = numsoln_[d][k];
+      if (ns != ns_)
 	printf("numsoln[%d][%d] mismatch\n", d, k);
-      if (LUT_[d][k] != LUT_[d][k])
-	printf("LUT[%d][%d] mismatch\n", d, k);
+      struct csoln *soln = LUT[d][k];
+      struct csoln *soln_ = LUT_[d][k];
+      if (soln->parent != soln_->parent)
+	printf("LUT[%d][%d]->parent mismatch\n", d, k);
+      for (int j = 0; soln->seg[j] != 0; j++) {
+      if (soln->seg[j] != soln_->seg[j])
+	printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
+      }
     }
   }
 }
