@@ -89,7 +89,9 @@ template <class T> inline T ADIFF(T x, T y) {
 
 ////////////////////////////////////////////////////////////////
 
-void readLUTfiles() {
+static void
+readLUTfiles(LUT_TYPE LUT,
+	     NUMSOLN_TYPE numsoln) {
         unsigned char charnum[256], line[32], *linep, c;
         FILE *fpwv, *fprt;
         struct csoln *p;
@@ -251,63 +253,79 @@ std::string base64_decode(std::string const& encoded_string) {
   return ret;
 }
 
-// echo "std::string powv9 = \"" > POWV9.var; base64 -i POWV9.dat >> POWV9.var; echo \"\; >> POWV9.var
-#include "etc/POWV9.var"
-// echo "std::string post9 = \"" > POST9.var; base64 -i POST9.dat >> POST9.var; echo \"\; >> POST9.var
-#include "etc/POST9.var"
-
-void
-mismatch(const char *str, const char *ptr, int cnt)
-{
-  char line[32];
-  strncpy(line, ptr, 32);
-  printf("mismatch at %ld %s\n",ptr-str, line);
-  printf("luse\n");
-}
-
-bool
-check(unsigned char *l1, char *l2)
-{
-  return strncmp((char*) l1, l2, strlen(l2)) != 0;
-}
-
 static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln_);
 static void
-checkLUT(LUT_TYPE LUT,
-	 NUMSOLN_TYPE numsoln_);
+checkLUT(LUT_TYPE LUT1,
+	 NUMSOLN_TYPE numsoln1,
+	 LUT_TYPE LUT2,
+	 NUMSOLN_TYPE numsoln2);
 
-void readLUT() {
+static void
+makeLUT(LUT_TYPE &LUT,
+	NUMSOLN_TYPE &numsoln)
+{
   LUT = new struct csoln **[FLUTE_D + 1];
   numsoln = new int*[FLUTE_D + 1];
   for (int d = 4; d <= FLUTE_D; d++) {
     LUT[d] = new struct csoln *[MGROUP];
     numsoln[d] = new int[MGROUP];
   }
-  readLUTfiles();
-#if 1
+}
+
+// Use flute LUT file reader.
+//#define LUT_FILE
+
+// Init LUTs from base64 encoded string variables.
+//#define LUT_VAR
+
+// Init LUTs from base64 encoded string variables
+// and check against LUTs from file reader.
+#define LUT_VAR_CHECK
+
+// echo "std::string powv9 = \"" > POWV9.var; base64 -i POWV9.dat >> POWV9.var; echo \"\; >> POWV9.var
+// echo "std::string post9 = \"" > POST9.var; base64 -i POST9.dat >> POST9.var; echo \"\; >> POST9.var
+
+#ifdef LUT_VAR
+#include "etc/POWV9.var"
+#include "etc/POST9.var"
+#endif
+#ifdef LUT_VAR_CHECK
+#include "etc/POWV9.var"
+#include "etc/POST9.var"
+#endif
+
+void readLUT() {
+  makeLUT(LUT, numsoln);
+
+#ifdef LUT_FILE
+  readLUTfiles(LUT, numsoln);
+#endif
+
+#ifdef LUT_VAR
+  initLUT(LUT, numsoln);
+#endif
+
+#ifdef LUT_VAR_CHECK
+  readLUTfiles(LUT, numsoln);
   // Temporaries to compare to file results.
-  LUT_TYPE LUT_ = new struct csoln **[FLUTE_D + 1];
-  NUMSOLN_TYPE numsoln_ = new int*[FLUTE_D + 1];
-  for (int d = 4; d <= FLUTE_D; d++) {
-    LUT_[d] = new struct csoln *[MGROUP];
-    numsoln_[d] = new int[MGROUP];
-  }
+  LUT_TYPE LUT_;
+  NUMSOLN_TYPE numsoln_;
+  makeLUT(LUT_, numsoln_);
   initLUT(LUT_, numsoln_);
-  checkLUT(LUT_, numsoln_);
+  checkLUT(LUT, numsoln, LUT_, numsoln_);
 #endif
 }
 
+// Init LUTs from base64 encoded string variables.
 static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln) {
-  unsigned char charnum[256], line[32], *linep, c;
-  char line1[32], *linep1, c1;
-  FILE *fpwv, *fprt;
+  unsigned char charnum[256], *linep;
+  char line[32];
   struct csoln *p;
   int d, i, j, k, kk, ns, nn;
-  int d1, i1, j1, k1, kk1, ns1, nn1;
 
   for (i = 0; i <= 255; i++) {
     if ('0' <= i && i <= '9')
@@ -317,62 +335,40 @@ initLUT(LUT_TYPE LUT,
     else  // if (i=='$' || i=='\n' || ... )
       charnum[i] = 0;
   }
-  fpwv = fopen(FLUTE_POWVFILE, "r");
   std::string pwv_string = base64_decode(powv9);
-  const char *pwv_str = pwv_string.c_str();
-  const char *pwv = pwv_str;
+  const char *pwv = pwv_string.c_str();
 
 #if FLUTE_ROUTING == 1
-  fprt = fopen(FLUTE_POSTFILE, "r");
   std::string prt_string = base64_decode(post9);
-  const char *prt_str = prt_string.c_str();
-  const char *prt = prt_str;
+  const char *prt = prt_string.c_str();
 #endif
 
   for (d = 4; d <= FLUTE_D; d++) {
-    fscanf(fpwv, "d=%d\n", &d1);
     int char_cnt;
     sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
-    if (d1 != d)
-      mismatch(pwv_str, pwv, char_cnt);
     pwv += char_cnt;
 #if FLUTE_ROUTING == 1
-    fscanf(fprt, "d=%d\n", &d1);
     sscanf(prt, "d=%d\n%n", &d, &char_cnt);
-    if (d1 != d)
-      mismatch(prt_str, prt, char_cnt);
     prt += char_cnt;
 #endif
     for (k = 0; k < numgrp[d]; k++) {
-      ns1 = (int)charnum[fgetc(fpwv)];
-      ns = (int)charnum[static_cast<unsigned char>(*pwv++)];
-      if (ns1 != ns)
-	mismatch(pwv_str, pwv, char_cnt);
+      ns = charnum[static_cast<unsigned char>(*pwv++)];
       if (ns == 0) {  // same as some previous group
-	fscanf(fpwv, "%d\n", &kk);
-	sscanf(pwv, "%d\n%n", &kk1, &char_cnt);
-	if (kk1 != kk)
-	  mismatch(pwv_str, pwv, char_cnt);
+	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
 	pwv += char_cnt;
 	numsoln[d][k] = numsoln[d][kk];
 	LUT[d][k] = LUT[d][kk];
       } else {
-	fgetc(fpwv);  // '\n'
 	pwv++;   // '\n'
 	numsoln[d][k] = ns;
 	p = new struct csoln[ns];
 	LUT[d][k] = p;
 	for (i = 1; i <= ns; i++) {
-	  linep1 = fgets((char *)line, 32, fpwv);
-	  const char *line_begin = pwv;
 	  char *lp;
-	  for (lp = line1; *pwv != '\n'; )
+	  for (lp = line; *pwv != '\n'; )
 	    *lp++ = *pwv++;
 	  *lp++ = *pwv++;   // '\n'
-	  *lp++ = '\0';
-	  linep = (unsigned char *) line1;
-	  if (check(linep, linep1))
-	    mismatch(pwv_str, line_begin, 32);
+	  linep = (unsigned char *) line;
 	  p->parent = charnum[*(linep++)];
 	  j = 0;
 	  while ((p->seg[j++] = charnum[*(linep++)]) != 0)
@@ -382,32 +378,20 @@ initLUT(LUT_TYPE LUT,
 	    ;
 #if FLUTE_ROUTING == 1
 	  nn = 2 * d - 2;
-	  fread(line, 1, d - 2, fprt);
-	  linep = line;
-	  line_begin = prt;
-	  lp = line1;
+	  linep = (unsigned char *) line;
+	  lp = line;
 	  for (int i = 0; i < d - 2; i++)
 	    *lp++ = *prt++;
-	  *lp++ = '\0';
-	  linep1 = line1;
-	  if (check(linep, linep1))
-	    mismatch(prt_str, line_begin, d - 2);
+	  linep = (unsigned char *) line;
 	  for (j = d; j < nn; j++) {
-	    c = charnum[*(linep++)];
-	    p->rowcol[j - d] = c;
+	    p->rowcol[j - d] = charnum[*(linep++)];
 	  }
-	  fread(line, 1, nn / 2 + 1, fprt);
-	  linep = line;
-	  line_begin = prt;
-	  lp = line1;
+	  linep = (unsigned char *) line;
+	  lp = line;
 	  for (int i = 0; i < nn / 2 + 1; i++)
 	    *lp++ = *prt++;
-	  *lp++ = '\0';
-	  linep1 = line1;
-	  if (check(linep, linep1))
-	    mismatch(prt_str, line_begin, nn / 2 + 1);
 	  for (j = 0; j < nn;) {
-	    c = *(linep++);
+	    unsigned char c = *(linep++);
 	    p->neighbor[j++] = c / 16;
 	    p->neighbor[j++] = c % 16;
 	  }
@@ -417,32 +401,32 @@ initLUT(LUT_TYPE LUT,
       }
     }
   }
-  fclose(fpwv);
-#if FLUTE_ROUTING == 1
-  fclose(fprt);
-#endif
 }
 
 static void
-checkLUT(LUT_TYPE LUT_,
-	 NUMSOLN_TYPE numsoln_) {
+checkLUT(LUT_TYPE LUT1,
+	 NUMSOLN_TYPE numsoln1,
+	 LUT_TYPE LUT2,
+	 NUMSOLN_TYPE numsoln2) {
   for (int d = 4; d <= FLUTE_D; d++) {
     for (int k = 0; k < numgrp[d]; k++) {
-      int ns = numsoln[d][k];
-      int ns_ = numsoln_[d][k];
-      if (ns != ns_)
+      int ns1 = numsoln1[d][k];
+      int ns2 = numsoln2[d][k];
+      if (ns1 != ns2)
 	printf("numsoln[%d][%d] mismatch\n", d, k);
-      struct csoln *soln = LUT[d][k];
-      struct csoln *soln_ = LUT_[d][k];
-      if (soln->parent != soln_->parent)
+      struct csoln *soln1 = LUT1[d][k];
+      struct csoln *soln2 = LUT2[d][k];
+      if (soln1->parent != soln2->parent)
 	printf("LUT[%d][%d]->parent mismatch\n", d, k);
-      for (int j = 0; soln->seg[j] != 0; j++) {
-      if (soln->seg[j] != soln_->seg[j])
-	printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
+      for (int j = 0; soln1->seg[j] != 0; j++) {
+	if (soln1->seg[j] != soln2->seg[j])
+	  printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
       }
     }
   }
 }
+
+////////////////////////////////////////////////////////////////
 
 DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
         DTYPE minval, l, xu, xl, yu, yl;
