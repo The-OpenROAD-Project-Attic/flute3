@@ -369,12 +369,12 @@ initLUT(LUT_TYPE LUT,
 	    *lp++ = *pwv++;
 	  *lp++ = *pwv++;   // '\n'
 	  linep = (unsigned char *) line;
-	  p->parent = charnum[*(linep++)];
+	  p->parent = charnum[*linep++];
 	  j = 0;
-	  while ((p->seg[j++] = charnum[*(linep++)]) != 0)
+	  while ((p->seg[j++] = charnum[*linep++]) != 0)
 	    ;
 	  j = 10;
-	  while ((p->seg[j--] = charnum[*(linep++)]) != 0)
+	  while ((p->seg[j--] = charnum[*linep++]) != 0)
 	    ;
 #if FLUTE_ROUTING == 1
 	  nn = 2 * d - 2;
@@ -384,14 +384,14 @@ initLUT(LUT_TYPE LUT,
 	    *lp++ = *prt++;
 	  linep = (unsigned char *) line;
 	  for (j = d; j < nn; j++) {
-	    p->rowcol[j - d] = charnum[*(linep++)];
+	    p->rowcol[j - d] = charnum[*linep++];
 	  }
 	  linep = (unsigned char *) line;
 	  lp = line;
 	  for (int i = 0; i < nn / 2 + 1; i++)
 	    *lp++ = *prt++;
 	  for (j = 0; j < nn;) {
-	    unsigned char c = *(linep++);
+	    unsigned char c = *linep++;
 	    p->neighbor[j++] = c / 16;
 	    p->neighbor[j++] = c % 16;
 	  }
@@ -421,6 +421,19 @@ checkLUT(LUT_TYPE LUT1,
       for (int j = 0; soln1->seg[j] != 0; j++) {
 	if (soln1->seg[j] != soln2->seg[j])
 	  printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
+      }
+      for (int j = 10; soln1->seg[j] != 0; j--) {
+	if (soln1->seg[j] != soln2->seg[j])
+	  printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
+      }
+      int nn = 2 * d - 2;
+      for (int j = d; j < nn; j++) {
+	if (soln1->rowcol[j - d] != soln2->rowcol[j - d])
+	  printf("LUT[%d][%d]->rowcol[%d] mismatch\n", d, k, j);
+      }
+      for (int j = 0; j < nn; j++) {
+	if (soln1->neighbor[j] != soln2->neighbor[j])
+	  printf("LUT[%d][%d]->neighbor[%d] mismatch\n", d, k, j);
       }
     }
   }
