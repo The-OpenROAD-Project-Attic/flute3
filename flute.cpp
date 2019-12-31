@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <limits.h>
 #include <math.h>
 #include <string>
@@ -318,23 +319,21 @@ void readLUT() {
 #endif
 }
 
+static unsigned char
+charNum(unsigned char c)
+{
+  if (isdigit(c))
+    return c - '0';
+  else if (c >= 'A')
+    return c - 'A' + 10;
+  else
+    return 0;
+}
+
 // Init LUTs from base64 encoded string variables.
 static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln) {
-  unsigned char charnum[256], *linep;
-  char line[32];
-  struct csoln *p;
-  int d, i, j, k, kk, ns, nn;
-
-  for (i = 0; i <= 255; i++) {
-    if ('0' <= i && i <= '9')
-      charnum[i] = i - '0';
-    else if (i >= 'A')
-      charnum[i] = i - 'A' + 10;
-    else  // if (i=='$' || i=='\n' || ... )
-      charnum[i] = 0;
-  }
   std::string pwv_string = base64_decode(powv9);
   const char *pwv = pwv_string.c_str();
 
@@ -343,7 +342,7 @@ initLUT(LUT_TYPE LUT,
   const char *prt = prt_string.c_str();
 #endif
 
-  for (d = 4; d <= FLUTE_D; d++) {
+  for (int d = 4; d <= FLUTE_D; d++) {
     int char_cnt;
     sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
     pwv += char_cnt;
@@ -351,9 +350,10 @@ initLUT(LUT_TYPE LUT,
     sscanf(prt, "d=%d\n%n", &d, &char_cnt);
     prt += char_cnt;
 #endif
-    for (k = 0; k < numgrp[d]; k++) {
-      ns = charnum[static_cast<unsigned char>(*pwv++)];
+    for (int k = 0; k < numgrp[d]; k++) {
+      int ns = charNum(*pwv++);
       if (ns == 0) {  // same as some previous group
+	int kk;
 	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
 	pwv += char_cnt;
 	numsoln[d][k] = numsoln[d][kk];
@@ -361,32 +361,33 @@ initLUT(LUT_TYPE LUT,
       } else {
 	pwv++;   // '\n'
 	numsoln[d][k] = ns;
-	p = new struct csoln[ns];
+	struct csoln *p = new struct csoln[ns];
 	LUT[d][k] = p;
-	for (i = 1; i <= ns; i++) {
+	for (int i = 1; i <= ns; i++) {
 	  char *lp;
+	  char line[32];
 	  for (lp = line; *pwv != '\n'; )
 	    *lp++ = *pwv++;
 	  *lp++ = *pwv++;   // '\n'
-	  linep = (unsigned char *) line;
-	  p->parent = charnum[*linep++];
-	  j = 0;
-	  while ((p->seg[j++] = charnum[*linep++]) != 0)
-	    ;
+	  char *linep = line;
+	  p->parent = charNum(*linep++);
+	  int j = 0;
+	  while ((p->seg[j++] = charNum(*linep++)) != 0) {
+	  }
 	  j = 10;
-	  while ((p->seg[j--] = charnum[*linep++]) != 0)
-	    ;
+	  while ((p->seg[j--] = charNum(*linep++)) != 0) {
+	  }
 #if FLUTE_ROUTING == 1
-	  nn = 2 * d - 2;
-	  linep = (unsigned char *) line;
+	  int nn = 2 * d - 2;
+	  linep = line;
 	  lp = line;
 	  for (int i = 0; i < d - 2; i++)
 	    *lp++ = *prt++;
-	  linep = (unsigned char *) line;
+	  linep = line;
 	  for (j = d; j < nn; j++) {
-	    p->rowcol[j - d] = charnum[*linep++];
+	    p->rowcol[j - d] = charNum(*linep++);
 	  }
-	  linep = (unsigned char *) line;
+	  linep = line;
 	  lp = line;
 	  for (int i = 0; i < nn / 2 + 1; i++)
 	    *lp++ = *prt++;
