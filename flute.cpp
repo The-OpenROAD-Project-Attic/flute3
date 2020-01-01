@@ -157,7 +157,7 @@ readLUTfiles(LUT_TYPE LUT,
                                         }
                                         fread(line, 1, nn / 2 + 1, fprt);
                                         linep = line;  // last char \n
-                                        for (j = 0; j < nn;) {
+					for (j = 0; j < nn;) {
                                                 c = *(linep++);
                                                 p->neighbor[j++] = c / 16;
                                                 p->neighbor[j++] = c % 16;
@@ -199,7 +199,7 @@ checkLUT(LUT_TYPE LUT1,
 #define LUT_VAR_CHECK 3
 
 // Set this to LUT_FILE, LUT_VAR, or LUT_VAR_CHECK.
-#define LUT_SOURCE LUT_VAR
+#define LUT_SOURCE LUT_VAR_CHECK
 
 extern std::string post9;
 extern std::string powv9;
@@ -281,39 +281,39 @@ initLUT(LUT_TYPE LUT,
 	struct csoln *p = new struct csoln[ns];
 	LUT[d][k] = p;
 	for (int i = 1; i <= ns; i++) {
-	  char *lp;
-	  char line[32];
-	  for (lp = line; *pwv != '\n'; )
-	    *lp++ = *pwv++;
-	  *lp++ = *pwv++;   // '\n'
-	  *lp++ = '\0';
-	  char *linep = line;
-	  p->parent = charNum(*linep++);
+	  p->parent = charNum(*pwv++);
+
 	  int j = 0;
-	  while ((p->seg[j++] = charNum(*linep++)) != 0) {
-	  }
+	  unsigned char ch, seg;
+	  do {
+	    ch = *pwv++;
+	    seg = charNum(ch);
+	    p->seg[j++] = seg;
+	  } while (seg != 0);
+
 	  j = 10;
-	  while ((p->seg[j--] = charNum(*linep++)) != 0) {
+	  if (ch == '\n')
+	    p->seg[j] = 0;
+	  else {
+	    do {
+	      ch = *pwv++;
+	      seg = charNum(ch);
+	      p->seg[j--] = seg;
+	    } while (seg != 0);
 	  }
+
 #if FLUTE_ROUTING == 1
 	  int nn = 2 * d - 2;
-	  linep = line;
-	  lp = line;
-	  for (int i = 0; i < d - 2; i++)
-	    *lp++ = *prt++;
-	  linep = line;
-	  for (j = d; j < nn; j++) {
-	    p->rowcol[j - d] = charNum(*linep++);
-	  }
-	  linep = line;
-	  lp = line;
-	  for (int i = 0; i < nn / 2 + 1; i++)
-	    *lp++ = *prt++;
-	  for (j = 0; j < nn;) {
-	    unsigned char c = *linep++;
+	  for (int j = d; j < nn; j++)
+	    p->rowcol[j - d] = charNum(*prt++);
+
+	  for (int j = 0; j < nn;) {
+	    //	    unsigned char c = *linep++;
+	    unsigned char c = *prt++;
 	    p->neighbor[j++] = c / 16;
 	    p->neighbor[j++] = c % 16;
 	  }
+	  prt++;  // \n
 #endif
 	  p++;
 	}
