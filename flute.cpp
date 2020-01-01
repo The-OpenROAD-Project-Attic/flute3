@@ -176,84 +176,9 @@ readLUTfiles(LUT_TYPE LUT,
 
 ////////////////////////////////////////////////////////////////
 
-/* 
-   base64.cpp and base64.h
-
-   Copyright (C) 2004-2008 René Nyffenegger
-
-   This source code is provided 'as-is', without any express or implied
-   warranty. In no event will the author be held liable for any damages
-   arising from the use of this software.
-
-   Permission is granted to anyone to use this software for any purpose,
-   including commercial applications, and to alter it and redistribute it
-   freely, subject to the following restrictions:
-
-   1. The origin of this source code must not be misrepresented; you must not
-      claim that you wrote the original source code. If you use this source code
-      in a product, an acknowledgment in the product documentation would be
-      appreciated but is not required.
-
-   2. Altered source versions must be plainly marked as such, and must not be
-      misrepresented as being the original source code.
-
-   3. This notice may not be removed or altered from any source distribution.
-
-   René Nyffenegger rene.nyffenegger@adp-gmbh.ch
-
-*/
-
-static const std::string base64_chars = 
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-             "abcdefghijklmnopqrstuvwxyz"
-             "0123456789+/";
-
-
-static inline bool is_base64(unsigned char c) {
-  return (isalnum(c) || (c == '+') || (c == '/'));
-}
-
-std::string base64_decode(std::string const& encoded_string) {
-  int in_len = encoded_string.size();
-  int i = 0;
-  int j = 0;
-  int in_ = 0;
-   char char_array_4[4], char_array_3[3];
-  std::string ret;
-
-  while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
-    char_array_4[i++] = encoded_string[in_]; in_++;
-    if (i ==4) {
-      for (i = 0; i <4; i++)
-        char_array_4[i] = base64_chars.find(char_array_4[i]);
-
-      char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-      char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-
-      for (i = 0; (i < 3); i++)
-        ret += char_array_3[i];
-      i = 0;
-    }
-  }
-
-  if (i) {
-    for (j = i; j <4; j++)
-      char_array_4[j] = 0;
-
-    for (j = 0; j <4; j++)
-      char_array_4[j] = base64_chars.find(char_array_4[j]);
-
-    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-    char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-
-    for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
-  }
-
-  return ret;
-}
-
+static void
+makeLUT(LUT_TYPE &LUT,
+	NUMSOLN_TYPE &numsoln);
 static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln_);
@@ -262,40 +187,21 @@ checkLUT(LUT_TYPE LUT1,
 	 NUMSOLN_TYPE numsoln1,
 	 LUT_TYPE LUT2,
 	 NUMSOLN_TYPE numsoln2);
-
-static void
-makeLUT(LUT_TYPE &LUT,
-	NUMSOLN_TYPE &numsoln)
-{
-  LUT = new struct csoln **[FLUTE_D + 1];
-  numsoln = new int*[FLUTE_D + 1];
-  for (int d = 4; d <= FLUTE_D; d++) {
-    LUT[d] = new struct csoln *[MGROUP];
-    numsoln[d] = new int[MGROUP];
-  }
-}
+static std::string
+base64_decode(std::string const& encoded_string);
 
 // Use flute LUT file reader.
 //#define LUT_FILE
 
 // Init LUTs from base64 encoded string variables.
-//#define LUT_VAR
+#define LUT_VAR
 
 // Init LUTs from base64 encoded string variables
 // and check against LUTs from file reader.
-#define LUT_VAR_CHECK
+//#define LUT_VAR_CHECK
 
-// echo "std::string powv9 = \"" > POWV9.var; base64 -i POWV9.dat >> POWV9.var; echo \"\; >> POWV9.var
-// echo "std::string post9 = \"" > POST9.var; base64 -i POST9.dat >> POST9.var; echo \"\; >> POST9.var
-
-#ifdef LUT_VAR
-#include "etc/POWV9.var"
-#include "etc/POST9.var"
-#endif
-#ifdef LUT_VAR_CHECK
-#include "etc/POWV9.var"
-#include "etc/POST9.var"
-#endif
+extern std::string post9;
+extern std::string powv9;
 
 void readLUT() {
   makeLUT(LUT, numsoln);
@@ -317,6 +223,18 @@ void readLUT() {
   initLUT(LUT_, numsoln_);
   checkLUT(LUT, numsoln, LUT_, numsoln_);
 #endif
+}
+
+static void
+makeLUT(LUT_TYPE &LUT,
+	NUMSOLN_TYPE &numsoln)
+{
+  LUT = new struct csoln **[FLUTE_D + 1];
+  numsoln = new int*[FLUTE_D + 1];
+  for (int d = 4; d <= FLUTE_D; d++) {
+    LUT[d] = new struct csoln *[MGROUP];
+    numsoln[d] = new int[MGROUP];
+  }
 }
 
 static unsigned char
@@ -438,6 +356,85 @@ checkLUT(LUT_TYPE LUT1,
       }
     }
   }
+}
+
+/* 
+   base64.cpp and base64.h
+
+   Copyright (C) 2004-2008 René Nyffenegger
+
+   This source code is provided 'as-is', without any express or implied
+   warranty. In no event will the author be held liable for any damages
+   arising from the use of this software.
+
+   Permission is granted to anyone to use this software for any purpose,
+   including commercial applications, and to alter it and redistribute it
+   freely, subject to the following restrictions:
+
+   1. The origin of this source code must not be misrepresented; you must not
+      claim that you wrote the original source code. If you use this source code
+      in a product, an acknowledgment in the product documentation would be
+      appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+      misrepresented as being the original source code.
+
+   3. This notice may not be removed or altered from any source distribution.
+
+   René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+
+*/
+
+static const std::string base64_chars = 
+             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+             "abcdefghijklmnopqrstuvwxyz"
+             "0123456789+/";
+
+
+static inline bool is_base64(unsigned char c) {
+  return (isalnum(c) || (c == '+') || (c == '/'));
+}
+
+static std::string
+base64_decode(std::string const& encoded_string) {
+  int in_len = encoded_string.size();
+  int i = 0;
+  int j = 0;
+  int in_ = 0;
+   char char_array_4[4], char_array_3[3];
+  std::string ret;
+
+  while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
+    char_array_4[i++] = encoded_string[in_]; in_++;
+    if (i ==4) {
+      for (i = 0; i <4; i++)
+        char_array_4[i] = base64_chars.find(char_array_4[i]);
+
+      char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+      char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+      for (i = 0; (i < 3); i++)
+        ret += char_array_3[i];
+      i = 0;
+    }
+  }
+
+  if (i) {
+    for (j = i; j <4; j++)
+      char_array_4[j] = 0;
+
+    for (j = 0; j <4; j++)
+      char_array_4[j] = base64_chars.find(char_array_4[j]);
+
+    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+    char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+    for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
+  }
+
+  return ret;
 }
 
 ////////////////////////////////////////////////////////////////
