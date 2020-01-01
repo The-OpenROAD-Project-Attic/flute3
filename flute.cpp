@@ -199,7 +199,7 @@ checkLUT(LUT_TYPE LUT1,
 #define LUT_VAR_CHECK 3
 
 // Set this to LUT_FILE, LUT_VAR, or LUT_VAR_CHECK.
-#define LUT_SOURCE LUT_VAR_CHECK
+#define LUT_SOURCE LUT_VAR
 
 extern std::string post9;
 extern std::string powv9;
