@@ -127,7 +127,7 @@ readLUTfiles(LUT_TYPE LUT,
                 fscanf(fprt, "d=%d\n", &d);
 #endif
                 for (k = 0; k < numgrp[d]; k++) {
-                        ns = (int)charnum[fgetc(fpwv)];
+			ns = (int)charnum[fgetc(fpwv)];
 
                         if (ns == 0) {  // same as some previous group
                                 fscanf(fpwv, "%d\n", &kk);
@@ -182,23 +182,24 @@ makeLUT(LUT_TYPE &LUT,
 static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln_);
+static std::string
+base64_decode(std::string const& encoded_string);
 static void
 checkLUT(LUT_TYPE LUT1,
 	 NUMSOLN_TYPE numsoln1,
 	 LUT_TYPE LUT2,
 	 NUMSOLN_TYPE numsoln2);
-static std::string
-base64_decode(std::string const& encoded_string);
 
 // Use flute LUT file reader.
-//#define LUT_FILE
-
+#define LUT_FILE 1
 // Init LUTs from base64 encoded string variables.
-#define LUT_VAR
-
+#define LUT_VAR 2
 // Init LUTs from base64 encoded string variables
 // and check against LUTs from file reader.
-//#define LUT_VAR_CHECK
+#define LUT_VAR_CHECK 3
+
+// Set this to LUT_FILE, LUT_VAR, or LUT_VAR_CHECK.
+#define LUT_SOURCE LUT_VAR
 
 extern std::string post9;
 extern std::string powv9;
@@ -206,15 +207,13 @@ extern std::string powv9;
 void readLUT() {
   makeLUT(LUT, numsoln);
 
-#ifdef LUT_FILE
+#if LUT_SOURCE==LUT_FILE
   readLUTfiles(LUT, numsoln);
-#endif
 
-#ifdef LUT_VAR
+#elif LUT_SOURCE==LUT_VAR
   initLUT(LUT, numsoln);
-#endif
 
-#ifdef LUT_VAR_CHECK
+#elif LUT_SOURCE==LUT_VAR_CHECK
   readLUTfiles(LUT, numsoln);
   // Temporaries to compare to file results.
   LUT_TYPE LUT_;
@@ -287,6 +286,7 @@ initLUT(LUT_TYPE LUT,
 	  for (lp = line; *pwv != '\n'; )
 	    *lp++ = *pwv++;
 	  *lp++ = *pwv++;   // '\n'
+	  *lp++ = '\0';
 	  char *linep = line;
 	  p->parent = charNum(*linep++);
 	  int j = 0;
