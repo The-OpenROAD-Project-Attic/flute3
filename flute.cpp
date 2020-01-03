@@ -308,7 +308,6 @@ initLUT(LUT_TYPE LUT,
 	    p->rowcol[j - d] = charNum(*prt++);
 
 	  for (int j = 0; j < nn;) {
-	    //	    unsigned char c = *linep++;
 	    unsigned char c = *prt++;
 	    p->neighbor[j++] = c / 16;
 	    p->neighbor[j++] = c % 16;
