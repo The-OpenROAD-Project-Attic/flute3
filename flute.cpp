@@ -70,6 +70,9 @@ typedef int **NUMSOLN_TYPE;
 LUT_TYPE LUT;
 NUMSOLN_TYPE numsoln;
 
+// Flag to check if LUTs were completely readed
+bool completelyReadTables;
+
 struct point {
         DTYPE x, y;
         int o;
@@ -182,6 +185,9 @@ makeLUT(LUT_TYPE &LUT,
 static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln_);
+static void
+completeLUT(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln_);
 static std::string
 base64_decode(std::string const& encoded_string);
 static void
@@ -259,7 +265,7 @@ initLUT(LUT_TYPE LUT,
   const char *prt = prt_string.c_str();
 #endif
 
-  for (int d = 4; d <= FLUTE_D; d++) {
+  for (int d = 4; d <= FLUTE_D - 2; d++) {
     int char_cnt;
     sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
     pwv += char_cnt;
@@ -319,6 +325,82 @@ initLUT(LUT_TYPE LUT,
       }
     }
   }
+  completelyReadTables = false;
+}
+
+static void
+completeLUT(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln_) {
+  std::string pwv_string = base64_decode(powv9);
+  const char *pwv = pwv_string.c_str();
+
+#if FLUTE_ROUTING == 1
+  std::string prt_string = base64_decode(post9);
+  const char *prt = prt_string.c_str();
+#endif
+
+  for (int d = 8; d <= FLUTE_D; d++) {
+    clock_t tStart = clock();
+    int char_cnt;
+    sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
+    pwv += char_cnt;
+#if FLUTE_ROUTING == 1
+    sscanf(prt, "d=%d\n%n", &d, &char_cnt);
+    prt += char_cnt;
+#endif
+    for (int k = 0; k < numgrp[d]; k++) {
+      int ns = charNum(*pwv++);
+      if (ns == 0) {  // same as some previous group
+	int kk;
+	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
+	pwv += char_cnt;
+	numsoln[d][k] = numsoln[d][kk];
+	LUT[d][k] = LUT[d][kk];
+      } else {
+	pwv++;   // '\n'
+	numsoln[d][k] = ns;
+	struct csoln *p = new struct csoln[ns];
+	LUT[d][k] = p;
+	for (int i = 1; i <= ns; i++) {
+	  p->parent = charNum(*pwv++);
+
+	  int j = 0;
+	  unsigned char ch, seg;
+	  do {
+	    ch = *pwv++;
+	    seg = charNum(ch);
+	    p->seg[j++] = seg;
+	  } while (seg != 0);
+
+	  j = 10;
+	  if (ch == '\n')
+	    p->seg[j] = 0;
+	  else {
+	    do {
+	      ch = *pwv++;
+	      seg = charNum(ch);
+	      p->seg[j--] = seg;
+	    } while (seg != 0);
+	  }
+
+#if FLUTE_ROUTING == 1
+	  int nn = 2 * d - 2;
+	  for (int j = d; j < nn; j++)
+	    p->rowcol[j - d] = charNum(*prt++);
+
+	  for (int j = 0; j < nn;) {
+	    unsigned char c = *prt++;
+	    p->neighbor[j++] = c / 16;
+	    p->neighbor[j++] = c % 16;
+	  }
+	  prt++;  // \n
+#endif
+	  p++;
+	}
+      }
+    }
+  }
+  completelyReadTables = true;
 }
 
 static void
@@ -473,6 +555,9 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
                 }
                 l = (xu - xl) + (yu - yl);
         } else {
+                if (d > FLUTE_D - 2 && !completelyReadTables) {
+                        completeLUT(LUT, numsoln);
+                }
                 for (i = 0; i < d; i++) {
                         pt[i].x = x[i];
                         pt[i].y = y[i];
@@ -551,6 +636,10 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
 DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
+        if (d > FLUTE_D - 2 && !completelyReadTables) {
+                completeLUT(LUT, numsoln);
+        }
+
         for (i = 0; i < d - 1; i++) {
                 if (xs[s[i]] == xs[s[i + 1]] && ys[i] == ys[i + 1]) {
                         if (s[i] < s[i + 1])
@@ -584,6 +673,10 @@ DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         if (d <= 3)
                 minl = xs[d - 1] - xs[0] + ys[d - 1] - ys[0];
         else {
+                if (d > FLUTE_D - 2 && !completelyReadTables) {
+                        completeLUT(LUT, numsoln);
+                }
+                
                 k = 0;
                 if (s[0] < s[2]) k++;
                 if (s[1] < s[2]) k++;
@@ -657,6 +750,10 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         si = (int *)malloc(sizeof(int) * (degree));
         s1 = (int *)malloc(sizeof(int) * (degree));
         s2 = (int *)malloc(sizeof(int) * (degree));
+
+        if (d > FLUTE_D - 2 && !completelyReadTables) {
+                completeLUT(LUT, numsoln);
+        }
 
         if (s[0] < s[d - 1]) {
                 ms = std::max(s[0], s[1]);
@@ -956,6 +1053,10 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
                 t.branch[1].y = y[1];
                 t.branch[1].n = 1;
         } else {
+                if (d > FLUTE_D - 2 && !completelyReadTables) {
+                        completeLUT(LUT, numsoln);
+                }
+                
                 xs = (DTYPE *)malloc(sizeof(DTYPE) * (d));
                 ys = (DTYPE *)malloc(sizeof(DTYPE) * (d));
                 s = (int *)malloc(sizeof(int) * (d));
@@ -1053,6 +1154,10 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
 Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
+        if (d > FLUTE_D - 2 && !completelyReadTables) {
+                completeLUT(LUT, numsoln);
+        }
+        
         for (i = 0; i < d - 1; i++) {
                 if (xs[s[i]] == xs[s[i + 1]] && ys[i] == ys[i + 1]) {
                         if (s[i] < s[i + 1])
@@ -1110,6 +1215,10 @@ Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
                 t.branch[3].y = ys[1];
                 t.branch[3].n = 3;
         } else {
+                if (d > FLUTE_D - 2 && !completelyReadTables) {
+                        completeLUT(LUT, numsoln);
+                }
+                
                 k = 0;
                 if (s[0] < s[2]) k++;
                 if (s[1] < s[2]) k++;
