@@ -29,10 +29,13 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <limits.h>
 #include <math.h>
+#include <string>
 #include <algorithm>
 #include "flute.h"
 
@@ -57,9 +60,18 @@ struct csoln {
         unsigned char neighbor[2 * FLUTE_D - 2];
 };
 
-struct csoln *LUT[FLUTE_D + 1][MGROUP];  // storing 4 .. FLUTE_D
+// struct csoln *LUT[FLUTE_D + 1][MGROUP];  // storing 4 .. FLUTE_D
+// int numsoln[FLUTE_D + 1][MGROUP];
 
-int numsoln[FLUTE_D + 1][MGROUP];
+typedef struct csoln ***LUT_TYPE;
+typedef int **NUMSOLN_TYPE;
+
+// Dynamically allocate LUTs.
+LUT_TYPE LUT;
+NUMSOLN_TYPE numsoln;
+
+// Flag to check if LUTs were completely readed
+bool end_read_lut;
 
 struct point {
         DTYPE x, y;
@@ -79,7 +91,11 @@ template <class T> inline T ADIFF(T x, T y) {
         }
 }
 
-void readLUT() {
+////////////////////////////////////////////////////////////////
+
+static void
+readLUTfiles(LUT_TYPE LUT,
+	     NUMSOLN_TYPE numsoln) {
         unsigned char charnum[256], line[32], *linep, c;
         FILE *fpwv, *fprt;
         struct csoln *p;
@@ -114,7 +130,7 @@ void readLUT() {
                 fscanf(fprt, "d=%d\n", &d);
 #endif
                 for (k = 0; k < numgrp[d]; k++) {
-                        ns = (int)charnum[fgetc(fpwv)];
+			ns = (int)charnum[fgetc(fpwv)];
 
                         if (ns == 0) {  // same as some previous group
                                 fscanf(fpwv, "%d\n", &kk);
@@ -144,7 +160,7 @@ void readLUT() {
                                         }
                                         fread(line, 1, nn / 2 + 1, fprt);
                                         linep = line;  // last char \n
-                                        for (j = 0; j < nn;) {
+					for (j = 0; j < nn;) {
                                                 c = *(linep++);
                                                 p->neighbor[j++] = c / 16;
                                                 p->neighbor[j++] = c % 16;
@@ -155,7 +171,356 @@ void readLUT() {
                         }
                 }
         }
+	fclose(fpwv);
+#if FLUTE_ROUTING == 1
+	fclose(fprt);
+#endif
 }
+
+////////////////////////////////////////////////////////////////
+
+static void
+makeLUT(LUT_TYPE &LUT,
+	NUMSOLN_TYPE &numsoln);
+static void
+initLUT(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln_);
+static void
+readLUT9(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln_, int d);
+static std::string
+base64_decode(std::string const& encoded_string);
+static void
+checkLUT(LUT_TYPE LUT1,
+	 NUMSOLN_TYPE numsoln1,
+	 LUT_TYPE LUT2,
+	 NUMSOLN_TYPE numsoln2);
+
+// Use flute LUT file reader.
+#define LUT_FILE 1
+// Init LUTs from base64 encoded string variables.
+#define LUT_VAR 2
+// Init LUTs from base64 encoded string variables
+// and check against LUTs from file reader.
+#define LUT_VAR_CHECK 3
+
+// Set this to LUT_FILE, LUT_VAR, or LUT_VAR_CHECK.
+#define LUT_SOURCE LUT_VAR
+
+extern std::string post9;
+extern std::string powv9;
+
+void readLUT() {
+  makeLUT(LUT, numsoln);
+
+#if LUT_SOURCE==LUT_FILE
+  readLUTfiles(LUT, numsoln);
+
+#elif LUT_SOURCE==LUT_VAR
+  initLUT(LUT, numsoln);
+
+#elif LUT_SOURCE==LUT_VAR_CHECK
+  readLUTfiles(LUT, numsoln);
+  // Temporaries to compare to file results.
+  LUT_TYPE LUT_;
+  NUMSOLN_TYPE numsoln_;
+  makeLUT(LUT_, numsoln_);
+  initLUT(LUT_, numsoln_);
+  checkLUT(LUT, numsoln, LUT_, numsoln_);
+#endif
+}
+
+static void
+makeLUT(LUT_TYPE &LUT,
+	NUMSOLN_TYPE &numsoln)
+{
+  LUT = new struct csoln **[FLUTE_D + 1];
+  numsoln = new int*[FLUTE_D + 1];
+  for (int d = 4; d <= FLUTE_D; d++) {
+    LUT[d] = new struct csoln *[MGROUP];
+    numsoln[d] = new int[MGROUP];
+  }
+}
+
+static unsigned char
+charNum(unsigned char c)
+{
+  if (isdigit(c))
+    return c - '0';
+  else if (c >= 'A')
+    return c - 'A' + 10;
+  else
+    return 0;
+}
+
+// Init LUTs from base64 encoded string variables.
+static void
+initLUT(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln) {
+  std::string pwv_string = base64_decode(powv9);
+  const char *pwv = pwv_string.c_str();
+
+#if FLUTE_ROUTING == 1
+  std::string prt_string = base64_decode(post9);
+  const char *prt = prt_string.c_str();
+#endif
+
+  for (int d = 4; d <= FLUTE_D - 2; d++) {
+    int char_cnt;
+    sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
+    pwv += char_cnt;
+#if FLUTE_ROUTING == 1
+    sscanf(prt, "d=%d\n%n", &d, &char_cnt);
+    prt += char_cnt;
+#endif
+    for (int k = 0; k < numgrp[d]; k++) {
+      int ns = charNum(*pwv++);
+      if (ns == 0) {  // same as some previous group
+	int kk;
+	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
+	pwv += char_cnt;
+	numsoln[d][k] = numsoln[d][kk];
+	LUT[d][k] = LUT[d][kk];
+      } else {
+	pwv++;   // '\n'
+	numsoln[d][k] = ns;
+	struct csoln *p = new struct csoln[ns];
+	LUT[d][k] = p;
+	for (int i = 1; i <= ns; i++) {
+	  p->parent = charNum(*pwv++);
+
+	  int j = 0;
+	  unsigned char ch, seg;
+	  do {
+	    ch = *pwv++;
+	    seg = charNum(ch);
+	    p->seg[j++] = seg;
+	  } while (seg != 0);
+
+	  j = 10;
+	  if (ch == '\n')
+	    p->seg[j] = 0;
+	  else {
+	    do {
+	      ch = *pwv++;
+	      seg = charNum(ch);
+	      p->seg[j--] = seg;
+	    } while (seg != 0);
+	  }
+
+#if FLUTE_ROUTING == 1
+	  int nn = 2 * d - 2;
+	  for (int j = d; j < nn; j++)
+	    p->rowcol[j - d] = charNum(*prt++);
+
+	  for (int j = 0; j < nn;) {
+	    unsigned char c = *prt++;
+	    p->neighbor[j++] = c / 16;
+	    p->neighbor[j++] = c % 16;
+	  }
+	  prt++;  // \n
+#endif
+	  p++;
+	}
+      }
+    }
+  }
+  end_read_lut = false;
+}
+
+static void
+readLUT9(LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln_, int d) {
+  if (d <= FLUTE_D - 2 || end_read_lut) {
+      return;
+  }
+  std::string pwv_string = base64_decode(powv9);
+  const char *pwv = pwv_string.c_str();
+
+#if FLUTE_ROUTING == 1
+  std::string prt_string = base64_decode(post9);
+  const char *prt = prt_string.c_str();
+#endif
+
+  for (int d = 8; d <= FLUTE_D; d++) {
+    int char_cnt;
+    sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
+    pwv += char_cnt;
+#if FLUTE_ROUTING == 1
+    sscanf(prt, "d=%d\n%n", &d, &char_cnt);
+    prt += char_cnt;
+#endif
+    for (int k = 0; k < numgrp[d]; k++) {
+      int ns = charNum(*pwv++);
+      if (ns == 0) {  // same as some previous group
+	int kk;
+	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
+	pwv += char_cnt;
+	numsoln[d][k] = numsoln[d][kk];
+	LUT[d][k] = LUT[d][kk];
+      } else {
+	pwv++;   // '\n'
+	numsoln[d][k] = ns;
+	struct csoln *p = new struct csoln[ns];
+	LUT[d][k] = p;
+	for (int i = 1; i <= ns; i++) {
+	  p->parent = charNum(*pwv++);
+
+	  int j = 0;
+	  unsigned char ch, seg;
+	  do {
+	    ch = *pwv++;
+	    seg = charNum(ch);
+	    p->seg[j++] = seg;
+	  } while (seg != 0);
+
+	  j = 10;
+	  if (ch == '\n')
+	    p->seg[j] = 0;
+	  else {
+	    do {
+	      ch = *pwv++;
+	      seg = charNum(ch);
+	      p->seg[j--] = seg;
+	    } while (seg != 0);
+	  }
+
+#if FLUTE_ROUTING == 1
+	  int nn = 2 * d - 2;
+	  for (int j = d; j < nn; j++)
+	    p->rowcol[j - d] = charNum(*prt++);
+
+	  for (int j = 0; j < nn;) {
+	    unsigned char c = *prt++;
+	    p->neighbor[j++] = c / 16;
+	    p->neighbor[j++] = c % 16;
+	  }
+	  prt++;  // \n
+#endif
+	  p++;
+	}
+      }
+    }
+  }
+  end_read_lut = true;
+}
+
+static void
+checkLUT(LUT_TYPE LUT1,
+	 NUMSOLN_TYPE numsoln1,
+	 LUT_TYPE LUT2,
+	 NUMSOLN_TYPE numsoln2) {
+  for (int d = 4; d <= FLUTE_D; d++) {
+    for (int k = 0; k < numgrp[d]; k++) {
+      int ns1 = numsoln1[d][k];
+      int ns2 = numsoln2[d][k];
+      if (ns1 != ns2)
+	printf("numsoln[%d][%d] mismatch\n", d, k);
+      struct csoln *soln1 = LUT1[d][k];
+      struct csoln *soln2 = LUT2[d][k];
+      if (soln1->parent != soln2->parent)
+	printf("LUT[%d][%d]->parent mismatch\n", d, k);
+      for (int j = 0; soln1->seg[j] != 0; j++) {
+	if (soln1->seg[j] != soln2->seg[j])
+	  printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
+      }
+      for (int j = 10; soln1->seg[j] != 0; j--) {
+	if (soln1->seg[j] != soln2->seg[j])
+	  printf("LUT[%d][%d]->seg[%d] mismatch\n", d, k, j);
+      }
+      int nn = 2 * d - 2;
+      for (int j = d; j < nn; j++) {
+	if (soln1->rowcol[j - d] != soln2->rowcol[j - d])
+	  printf("LUT[%d][%d]->rowcol[%d] mismatch\n", d, k, j);
+      }
+      for (int j = 0; j < nn; j++) {
+	if (soln1->neighbor[j] != soln2->neighbor[j])
+	  printf("LUT[%d][%d]->neighbor[%d] mismatch\n", d, k, j);
+      }
+    }
+  }
+}
+
+/* 
+   base64.cpp and base64.h
+
+   Copyright (C) 2004-2008 René Nyffenegger
+
+   This source code is provided 'as-is', without any express or implied
+   warranty. In no event will the author be held liable for any damages
+   arising from the use of this software.
+
+   Permission is granted to anyone to use this software for any purpose,
+   including commercial applications, and to alter it and redistribute it
+   freely, subject to the following restrictions:
+
+   1. The origin of this source code must not be misrepresented; you must not
+      claim that you wrote the original source code. If you use this source code
+      in a product, an acknowledgment in the product documentation would be
+      appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+      misrepresented as being the original source code.
+
+   3. This notice may not be removed or altered from any source distribution.
+
+   René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+
+*/
+
+static const std::string base64_chars = 
+             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+             "abcdefghijklmnopqrstuvwxyz"
+             "0123456789+/";
+
+
+static inline bool is_base64(unsigned char c) {
+  return (isalnum(c) || (c == '+') || (c == '/'));
+}
+
+static std::string
+base64_decode(std::string const& encoded_string) {
+  int in_len = encoded_string.size();
+  int i = 0;
+  int j = 0;
+  int in_ = 0;
+   char char_array_4[4], char_array_3[3];
+  std::string ret;
+
+  while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
+    char_array_4[i++] = encoded_string[in_]; in_++;
+    if (i ==4) {
+      for (i = 0; i <4; i++)
+        char_array_4[i] = base64_chars.find(char_array_4[i]);
+
+      char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+      char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+      for (i = 0; (i < 3); i++)
+        ret += char_array_3[i];
+      i = 0;
+    }
+  }
+
+  if (i) {
+    for (j = i; j <4; j++)
+      char_array_4[j] = 0;
+
+    for (j = 0; j <4; j++)
+      char_array_4[j] = base64_chars.find(char_array_4[j]);
+
+    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+    char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+    for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
+  }
+
+  return ret;
+}
+
+////////////////////////////////////////////////////////////////
 
 DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
         DTYPE minval, l, xu, xl, yu, yl;
@@ -192,6 +557,8 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
                 }
                 l = (xu - xl) + (yu - yl);
         } else {
+                readLUT9(LUT, numsoln, d);
+                
                 for (i = 0; i < d; i++) {
                         pt[i].x = x[i];
                         pt[i].y = y[i];
@@ -270,6 +637,8 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
 DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
+        readLUT9(LUT, numsoln, d);        
+
         for (i = 0; i < d - 1; i++) {
                 if (xs[s[i]] == xs[s[i + 1]] && ys[i] == ys[i + 1]) {
                         if (s[i] < s[i + 1])
@@ -303,6 +672,8 @@ DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         if (d <= 3)
                 minl = xs[d - 1] - xs[0] + ys[d - 1] - ys[0];
         else {
+                readLUT9(LUT, numsoln, d);
+                               
                 k = 0;
                 if (s[0] < s[2]) k++;
                 if (s[1] < s[2]) k++;
@@ -376,6 +747,8 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         si = (int *)malloc(sizeof(int) * (degree));
         s1 = (int *)malloc(sizeof(int) * (degree));
         s2 = (int *)malloc(sizeof(int) * (degree));
+
+        readLUT9(LUT, numsoln, d);
 
         if (s[0] < s[d - 1]) {
                 ms = std::max(s[0], s[1]);
@@ -675,6 +1048,8 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
                 t.branch[1].y = y[1];
                 t.branch[1].n = 1;
         } else {
+                readLUT9(LUT, numsoln, d);
+                
                 xs = (DTYPE *)malloc(sizeof(DTYPE) * (d));
                 ys = (DTYPE *)malloc(sizeof(DTYPE) * (d));
                 s = (int *)malloc(sizeof(int) * (d));
@@ -772,6 +1147,8 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
 Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
+        readLUT9(LUT, numsoln, d);
+                
         for (i = 0; i < d - 1; i++) {
                 if (xs[s[i]] == xs[s[i + 1]] && ys[i] == ys[i + 1]) {
                         if (s[i] < s[i + 1])
@@ -829,6 +1206,8 @@ Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
                 t.branch[3].y = ys[1];
                 t.branch[3].n = 3;
         } else {
+                readLUT9(LUT, numsoln, d);
+                
                 k = 0;
                 if (s[0] < s[2]) k++;
                 if (s[1] < s[2]) k++;
@@ -1598,4 +1977,5 @@ void free_tree(Tree t) {
         
         t.deg = 0 ;
 }
+
 }  // namespace Flute
