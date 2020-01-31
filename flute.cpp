@@ -340,7 +340,6 @@ completeLUT(LUT_TYPE LUT,
 #endif
 
   for (int d = 8; d <= FLUTE_D; d++) {
-    clock_t tStart = clock();
     int char_cnt;
     sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
     pwv += char_cnt;
