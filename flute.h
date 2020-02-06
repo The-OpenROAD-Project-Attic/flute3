@@ -32,6 +32,8 @@
 #ifndef __FLUTE_H__
 #define __FLUTE_H__
 
+#include <deque>
+
 namespace Flute {
 
 /*****************************/
@@ -61,63 +63,63 @@ typedef struct {
 
 // User-Callable Functions
 void readLUT();
-DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc);
-Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
+DTYPE flute_wl(int d, std::deque<DTYPE> x, std::deque<DTYPE> y, int acc);
+Tree flute(int d, std::deque<DTYPE> x, std::deque<DTYPE> y, int acc);
 DTYPE wirelength(Tree t);
 void printtree(Tree t);
 void plottree(Tree t);
 void free_tree(Tree t);
 
 // Other useful functions
-DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]);
-Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flutes_HD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
-Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc);
+DTYPE flutes_wl_LD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[]);
+DTYPE flutes_wl_MD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc);
+DTYPE flutes_wl_RDP(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc);
+Tree flutes_LD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[]);
+Tree flutes_MD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc);
+Tree flutes_HD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc);
+Tree flutes_RDP(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc);
 
-inline DTYPE flutes_wl_LMD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+inline DTYPE flutes_wl_LMD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc) {
         if (d <= FLUTE_D) {
-                return flutes_wl_LD(d, xs, ys, s);
+                return flutes_wl_LD(d, xs, idx_x, ys, idx_y, s);
         } else {
-                return flutes_wl_MD(d, xs, ys, s, acc);
+                return flutes_wl_MD(d, xs, idx_x, ys, idx_y, s, acc);
         }
 }
 
-inline DTYPE flutes_wl_ALLD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
-        return flutes_wl_LMD(d, xs, ys, s, acc);
+inline DTYPE flutes_wl_ALLD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc) {
+        return flutes_wl_LMD(d, xs, idx_x, ys, idx_y, s, acc);
 }
 
-inline DTYPE flutes_wl(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+inline DTYPE flutes_wl(int d, std::deque<DTYPE> &xs, std::deque<DTYPE> &ys, int s[], int acc) {
         if (FLUTE_REMOVE_DUPLICATE_PIN == 1) {
-                return flutes_wl_RDP(d, xs, ys, s, acc);
+                return flutes_wl_RDP(d, xs, 0, ys, 0, s, acc);
         } else {
-                return flutes_wl_ALLD(d, xs, ys, s, acc);
+                return flutes_wl_ALLD(d, xs, 0, ys, 0, s, acc);
         }
 }
 
-inline Tree flutes_ALLD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+inline Tree flutes_ALLD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc) {
         if (d <= FLUTE_D) {
-                return flutes_LD(d, xs, ys, s);
+                return flutes_LD(d, xs, idx_x, ys, idx_y, s);
         } else {
-                return flutes_MD(d, xs, ys, s, acc);
+                return flutes_MD(d, xs, idx_x, ys, idx_y, s, acc);
         }
 }
 
-inline Tree flutes(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+inline Tree flutes(int d, std::deque<DTYPE> &xs, std::deque<DTYPE> &ys, int s[], int acc) {
         if (FLUTE_REMOVE_DUPLICATE_PIN == 1) {
-                return flutes_RDP(d, xs, ys, s, acc);
+                return flutes_RDP(d, xs, 0, ys, 0, s, acc);
         } else {
-                return flutes_ALLD(d, xs, ys, s, acc);
+                return flutes_ALLD(d, xs, 0, ys, 0, s, acc);
         }
 }
 
-inline Tree flutes_LMD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
+inline Tree flutes_LMD(int d, std::deque<DTYPE> &xs, int idx_x, std::deque<DTYPE> &ys, int idx_y, int s[], int acc) {
         if (d <= FLUTE_D) {
-                return flutes_LD(d, xs, ys, s);
+                return flutes_LD(d, xs, idx_x, ys, idx_y, s);
         } else {
-                return flutes_MD(d, xs, ys, s, acc);
+                return flutes_MD(d, xs, idx_x, ys, idx_y, s, acc);
         }
 }
 }  // namespace Flute
