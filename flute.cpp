@@ -183,6 +183,9 @@ static void
 makeLUT(LUT_TYPE &LUT,
 	NUMSOLN_TYPE &numsoln);
 static void
+deleteLUT(LUT_TYPE &LUT,
+	  NUMSOLN_TYPE &numsoln);
+static void
 initLUT(LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln_);
 static void
@@ -240,6 +243,24 @@ makeLUT(LUT_TYPE &LUT,
     LUT[d] = new struct csoln *[MGROUP];
     numsoln[d] = new int[MGROUP];
   }
+}
+
+void
+deleteLUT()
+{
+  deleteLUT(LUT, numsoln);
+}
+
+static void
+deleteLUT(LUT_TYPE &LUT,
+	  NUMSOLN_TYPE &numsoln)
+{
+  for (int d = 4; d <= FLUTE_D; d++) {
+    delete [] LUT[d];
+    delete [] numsoln[d];
+  }
+  delete [] numsoln;
+  delete [] LUT;
 }
 
 static unsigned char
