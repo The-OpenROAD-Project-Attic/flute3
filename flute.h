@@ -67,6 +67,7 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc);
 DTYPE wirelength(Tree t);
 void printtree(Tree t);
 void plottree(Tree t);
+void write_svg(Tree t, const char *filename);
 void free_tree(Tree t);
 
 // Other useful functions
