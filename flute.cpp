@@ -297,18 +297,18 @@ initLUT(int to_d,
 
   for (int d = 4; d <= to_d; d++) {
     int char_cnt;
-    sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
-    pwv += char_cnt;
+    sscanf(pwv, "d=%d%n", &d, &char_cnt);
+    pwv += char_cnt + 1;
 #if FLUTE_ROUTING == 1
-    sscanf(prt, "d=%d\n%n", &d, &char_cnt);
-    prt += char_cnt;
+    sscanf(prt, "d=%d%n", &d, &char_cnt);
+    prt += char_cnt + 1;
 #endif
     for (int k = 0; k < numgrp[d]; k++) {
       int ns = charNum(*pwv++);
       if (ns == 0) {  // same as some previous group
 	int kk;
-	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
-	pwv += char_cnt;
+	sscanf(pwv, "%d%n", &kk, &char_cnt);
+	pwv += char_cnt + 1;
 	numsoln[d][k] = numsoln[d][kk];
 	LUT[d][k] = LUT[d][kk];
       } else {
