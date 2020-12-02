@@ -70,9 +70,6 @@ typedef int **NUMSOLN_TYPE;
 LUT_TYPE LUT;
 NUMSOLN_TYPE numsoln;
 
-// Flag to check if LUTs were completely readed
-bool end_read_lut;
-
 struct point {
         DTYPE x, y;
         int o;
@@ -125,15 +122,18 @@ readLUTfiles(LUT_TYPE LUT,
 #endif
 
         for (d = 4; d <= FLUTE_D; d++) {
-                fscanf(fpwv, "d=%d\n", &d);
+                fscanf(fpwv, "d=%d", &d);
+                fgetc(fpwv);    // '/n'
 #if FLUTE_ROUTING == 1
-                fscanf(fprt, "d=%d\n", &d);
+                fscanf(fprt, "d=%d", &d);
+                fgetc(fprt);    // '/n'
 #endif
                 for (k = 0; k < numgrp[d]; k++) {
 			ns = (int)charnum[fgetc(fpwv)];
 
                         if (ns == 0) {  // same as some previous group
-                                fscanf(fpwv, "%d\n", &kk);
+                                fscanf(fpwv, "%d", &kk);
+                                fgetc(fpwv); // '/n'
                                 numsoln[d][k] = numsoln[d][kk];
                                 LUT[d][k] = LUT[d][kk];
                         } else {
@@ -186,11 +186,11 @@ static void
 deleteLUT(LUT_TYPE &LUT,
 	  NUMSOLN_TYPE &numsoln);
 static void
-initLUT(LUT_TYPE LUT,
-	NUMSOLN_TYPE numsoln_);
+initLUT(int to_d,
+        LUT_TYPE LUT,
+	NUMSOLN_TYPE numsoln);
 static void
-readLUT9(LUT_TYPE LUT,
-	NUMSOLN_TYPE numsoln_, int d);
+ensureLUT(int d);
 static std::string
 base64_decode(std::string const& encoded_string);
 static void
@@ -198,6 +198,10 @@ checkLUT(LUT_TYPE LUT1,
 	 NUMSOLN_TYPE numsoln1,
 	 LUT_TYPE LUT2,
 	 NUMSOLN_TYPE numsoln2);
+
+// LUTs are initialized to this order at startup.
+static constexpr int lut_initial_d = 8;
+static int lut_valid_d = 0;
 
 // Use flute LUT file reader.
 #define LUT_FILE 1
@@ -208,6 +212,8 @@ checkLUT(LUT_TYPE LUT1,
 #define LUT_VAR_CHECK 3
 
 // Set this to LUT_FILE, LUT_VAR, or LUT_VAR_CHECK.
+//#define LUT_SOURCE LUT_FILE
+//#define LUT_SOURCE LUT_VAR_CHECK
 #define LUT_SOURCE LUT_VAR
 
 extern std::string post9;
@@ -218,9 +224,11 @@ void readLUT() {
 
 #if LUT_SOURCE==LUT_FILE
   readLUTfiles(LUT, numsoln);
+  lut_valid_d = FLUTE_D;
 
 #elif LUT_SOURCE==LUT_VAR
-  initLUT(LUT, numsoln);
+  // Only init to d=8 on startup because d=9 is big and slow.
+  initLUT(lut_initial_d, LUT, numsoln);
 
 #elif LUT_SOURCE==LUT_VAR_CHECK
   readLUTfiles(LUT, numsoln);
@@ -228,7 +236,7 @@ void readLUT() {
   LUT_TYPE LUT_;
   NUMSOLN_TYPE numsoln_;
   makeLUT(LUT_, numsoln_);
-  initLUT(LUT_, numsoln_);
+  initLUT(FLUTE_D, LUT_, numsoln_);
   checkLUT(LUT, numsoln, LUT_, numsoln_);
 #endif
 }
@@ -276,7 +284,8 @@ charNum(unsigned char c)
 
 // Init LUTs from base64 encoded string variables.
 static void
-initLUT(LUT_TYPE LUT,
+initLUT(int to_d,
+        LUT_TYPE LUT,
 	NUMSOLN_TYPE numsoln) {
   std::string pwv_string = base64_decode(powv9);
   const char *pwv = pwv_string.c_str();
@@ -286,7 +295,7 @@ initLUT(LUT_TYPE LUT,
   const char *prt = prt_string.c_str();
 #endif
 
-  for (int d = 4; d <= FLUTE_D - 2; d++) {
+  for (int d = 4; d <= to_d; d++) {
     int char_cnt;
     sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
     pwv += char_cnt;
@@ -346,84 +355,14 @@ initLUT(LUT_TYPE LUT,
       }
     }
   }
-  end_read_lut = false;
+  lut_valid_d = to_d;
 }
 
 static void
-readLUT9(LUT_TYPE LUT,
-	NUMSOLN_TYPE numsoln_, int d) {
-  if (d <= FLUTE_D - 2 || end_read_lut) {
-      return;
+ensureLUT(int d) {
+  if (d > lut_valid_d && d <= FLUTE_D) {
+    initLUT(FLUTE_D, LUT, numsoln);
   }
-  std::string pwv_string = base64_decode(powv9);
-  const char *pwv = pwv_string.c_str();
-
-#if FLUTE_ROUTING == 1
-  std::string prt_string = base64_decode(post9);
-  const char *prt = prt_string.c_str();
-#endif
-
-  for (int d = 8; d <= FLUTE_D; d++) {
-    int char_cnt;
-    sscanf(pwv, "d=%d\n%n", &d, &char_cnt);
-    pwv += char_cnt;
-#if FLUTE_ROUTING == 1
-    sscanf(prt, "d=%d\n%n", &d, &char_cnt);
-    prt += char_cnt;
-#endif
-    for (int k = 0; k < numgrp[d]; k++) {
-      int ns = charNum(*pwv++);
-      if (ns == 0) {  // same as some previous group
-	int kk;
-	sscanf(pwv, "%d\n%n", &kk, &char_cnt);
-	pwv += char_cnt;
-	numsoln[d][k] = numsoln[d][kk];
-	LUT[d][k] = LUT[d][kk];
-      } else {
-	pwv++;   // '\n'
-	numsoln[d][k] = ns;
-	struct csoln *p = new struct csoln[ns];
-	LUT[d][k] = p;
-	for (int i = 1; i <= ns; i++) {
-	  p->parent = charNum(*pwv++);
-
-	  int j = 0;
-	  unsigned char ch, seg;
-	  do {
-	    ch = *pwv++;
-	    seg = charNum(ch);
-	    p->seg[j++] = seg;
-	  } while (seg != 0);
-
-	  j = 10;
-	  if (ch == '\n')
-	    p->seg[j] = 0;
-	  else {
-	    do {
-	      ch = *pwv++;
-	      seg = charNum(ch);
-	      p->seg[j--] = seg;
-	    } while (seg != 0);
-	  }
-
-#if FLUTE_ROUTING == 1
-	  int nn = 2 * d - 2;
-	  for (int j = d; j < nn; j++)
-	    p->rowcol[j - d] = charNum(*prt++);
-
-	  for (int j = 0; j < nn;) {
-	    unsigned char c = *prt++;
-	    p->neighbor[j++] = c / 16;
-	    p->neighbor[j++] = c % 16;
-	  }
-	  prt++;  // \n
-#endif
-	  p++;
-	}
-      }
-    }
-  }
-  end_read_lut = true;
 }
 
 static void
@@ -505,7 +444,7 @@ base64_decode(std::string const& encoded_string) {
   int i = 0;
   int j = 0;
   int in_ = 0;
-   char char_array_4[4], char_array_3[3];
+  char char_array_4[4], char_array_3[3];
   std::string ret;
 
   while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
@@ -578,7 +517,7 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
                 }
                 l = (xu - xl) + (yu - yl);
         } else {
-                readLUT9(LUT, numsoln, d);
+                ensureLUT(d);
                 
                 for (i = 0; i < d; i++) {
                         pt[i].x = x[i];
@@ -658,7 +597,7 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc) {
 DTYPE flutes_wl_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
-        readLUT9(LUT, numsoln, d);        
+        ensureLUT(d);
 
         for (i = 0; i < d - 1; i++) {
                 if (xs[s[i]] == xs[s[i + 1]] && ys[i] == ys[i + 1]) {
@@ -693,7 +632,7 @@ DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
         if (d <= 3)
                 minl = xs[d - 1] - xs[0] + ys[d - 1] - ys[0];
         else {
-                readLUT9(LUT, numsoln, d);
+                ensureLUT(d);
                                
                 k = 0;
                 if (s[0] < s[2]) k++;
@@ -769,7 +708,7 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         s1 = (int *)malloc(sizeof(int) * (degree));
         s2 = (int *)malloc(sizeof(int) * (degree));
 
-        readLUT9(LUT, numsoln, d);
+        ensureLUT(d);
 
         if (s[0] < s[d - 1]) {
                 ms = std::max(s[0], s[1]);
@@ -1069,7 +1008,7 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
                 t.branch[1].y = y[1];
                 t.branch[1].n = 1;
         } else {
-                readLUT9(LUT, numsoln, d);
+                ensureLUT(d);
                 
                 xs = (DTYPE *)malloc(sizeof(DTYPE) * (d));
                 ys = (DTYPE *)malloc(sizeof(DTYPE) * (d));
@@ -1168,7 +1107,7 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc) {
 Tree flutes_RDP(int d, DTYPE xs[], DTYPE ys[], int s[], int acc) {
         int i, j, ss;
 
-        readLUT9(LUT, numsoln, d);
+        ensureLUT(d);
                 
         for (i = 0; i < d - 1; i++) {
                 if (xs[s[i]] == xs[s[i + 1]] && ys[i] == ys[i + 1]) {
@@ -1227,7 +1166,7 @@ Tree flutes_LD(int d, DTYPE xs[], DTYPE ys[], int s[]) {
                 t.branch[3].y = ys[1];
                 t.branch[3].n = 3;
         } else {
-                readLUT9(LUT, numsoln, d);
+                ensureLUT(d);
                 
                 k = 0;
                 if (s[0] < s[2]) k++;
