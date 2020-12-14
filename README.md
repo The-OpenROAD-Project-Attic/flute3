@@ -1,3 +1,5 @@
+# This repo is obsolete.  Please see the OpenROAD repo instead.
+
 Flute3
 ======================
 
